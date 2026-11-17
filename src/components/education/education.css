@@ -11,6 +11,8 @@
 .education-footer { color: var(--dsw-alias-label-tertiary); font-size: 11px; text-align: center; line-height: 1.8; }
 .connection-status { color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.7; text-align: center; margin: 6px 0; }
 .connection-status span { color: #7187bc; font-size: 8px; }
+.connection-status-link { border: none; background: transparent; color: inherit; font: inherit; font-size: 11px; line-height: 1.7; cursor: pointer; text-decoration: underline; padding: 0; }
+.connection-status-link:hover { color: var(--dsw-alias-button-primary-fill); }
 @media (max-width: 767px) {
   .education-mark { margin-top: auto; width: 40px; height: 40px; font-size: 21px; }
   .education-eyebrow { margin-bottom: 18px; }

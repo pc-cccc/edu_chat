@@ -2,6 +2,8 @@
 
 基于 [DeepSeek 官方 chat-demo](https://github.com/deepseek-ai/chat-demo) 实际源码开发的个人教育聊天项目。**非 DeepSeek 官方产品**。保留聊天体验，增加独立品牌、学习提示、服务端密钥代理、本地演示与未来可视化组件接口。
 
+> **V0.2 新增**：可打包成 Android App，电脑关机后通过云端后端独立使用 DeepSeek。见 [Android 独立运行版指南](docs/ANDROID.md)，含云端部署、App 配置与 APK 构建步骤。
+
 ## 启动
 
 需要 Node.js 22.12+ 和 pnpm。命令可在 Windows、macOS、Linux 使用。
@@ -79,7 +81,8 @@ pnpm start
 | DEEPSEEK_API_ORIGIN | https://api.deepseek.com；只能是无路径、无凭据的可信 HTTPS origin |
 | HOST / PORT | 127.0.0.1 / 8090，用于 pnpm start |
 | PUBLIC_ORIGIN | 对外访问的唯一 HTTPS origin；开发模式由脚本固定 |
-| APP_USER / APP_PASSWORD | 对外服务必填；开发服务仅限本机，不启用站点登录 |
+| APP_USER / APP_PASSWORD | 浏览器访问的站点账号（Basic）；对外服务与 APP_TOKEN 二选一或都配 |
+| APP_TOKEN | 手机 App 的访问令牌（≥16 字符）；对外服务与站点账号二选一或都配 |
 | RATE_LIMIT_PER_MINUTE | 默认 60，全实例 API 请求限制 |
 | MAX_BODY_BYTES | 默认 33554432，即 32 MiB |
 

@@ -5,6 +5,7 @@ import { useIsMobile } from '../../app/viewport.js'
 import { IconButton } from '../base/IconButton.js'
 import { useApiKeyForm } from './useApiKeyForm.js'
 import { useTranslate } from '../../i18n/index.js'
+import { ServerConnection } from './ServerConnection.js'
 import styles from './Settings.module.css'
 
 /** API Key 的编辑状态：输入框与移动端底部的「确定」按钮共用 */
@@ -23,11 +24,14 @@ export const ApiKeyField = ({ editor }: { editor: ApiKeyEditor }) => {
   const isMobile = useIsMobile()
   const { apiKey, editing, setEditing, form, showInput } = editor
 
-  if (__APP_MODE__ !== 'direct') {
+  if (__APP_MODE__ === 'demo') {
     return <div className={styles.cell}><div>
       <div className={styles.label}>{t('managedConnection')}</div>
-      <p>{t(__APP_MODE__ === 'demo' ? 'demoDescription' : 'managedDescription')}</p>
+      <p>{t('demoDescription')}</p>
     </div></div>
+  }
+  if (__APP_MODE__ === 'server') {
+    return <ServerConnection />
   }
 
   return (

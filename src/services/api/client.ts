@@ -1,4 +1,5 @@
 import { translate, type TranslationMessage } from '../../i18n/index.js'
+import { getAppOrigin, getAppToken } from './auth.js'
 import { readMessageEvent } from './parseEvent.js'
 import { readServerSentEvents } from './sse.js'
 import type {
@@ -9,10 +10,23 @@ import type {
   MessageStreamEvent,
 } from './types.js'
 
-/** 构建期 API 地址，默认 https://api.deepseek.com；本地开发支持开发服务器代理 */
-export const API_ORIGIN = __API_ORIGIN__
+/**
+ * 云端/服务器 API 基地址（调用方会在此之上拼 /anthropic/v1、/models、/status、/v1/tools）。
+ * - direct 模式固定用 DeepSeek 官方地址；
+ * - server 模式优先用应用内配置的服务器地址（不带 /api，这里自动补上），否则用构建期默认的相对 /api。
+ */
+export const apiOrigin = (): string => {
+  if (__APP_MODE__ === 'direct') {
+    return __API_ORIGIN__
+  }
+  const origin = getAppOrigin()
+  if (!origin) {
+    return __API_ORIGIN__
+  }
+  return `${origin.replace(/\/+$/, '')}/api`
+}
 /** Anthropic 兼容接口的前缀 */
-const ANTHROPIC_BASE_URL = `${API_ORIGIN}/anthropic/v1`
+const anthropicBaseUrl = (): string => `${apiOrigin()}/anthropic/v1`
 /** 引用 Files API 上传的图片、调用 Anthropic 兼容 Files API 时必须携带 */
 const FILES_BETA = 'files-api-2025-04-14'
 
@@ -71,8 +85,14 @@ export const request = async (url: string, init: RequestInit): Promise<Response>
   try {
     const headers = new Headers(init.headers)
     if (__APP_MODE__ !== 'direct') {
+      // server/app 模式：前端不持有 DeepSeek 密钥，交给服务端注入
       headers.delete('x-api-key')
       headers.delete('Authorization')
+      // 附加访问令牌，让云端后端识别首方客户端（令牌不是 DeepSeek 密钥）
+      const appToken = getAppToken()
+      if (appToken) {
+        headers.set('x-app-token', appToken)
+      }
     }
     response = await fetch(url, { ...init, headers })
   } catch (error) {
@@ -96,11 +116,19 @@ const anthropicHeaders = (apiKey: string, beta: boolean): Record<string, string>
 
 /** 用 GET /models 校验 API Key（不产生费用） */
 export const verifyApiKey = async (apiKey: string, signal?: AbortSignal): Promise<void> => {
-  await request(`${API_ORIGIN}/models`, {
+  await request(`${apiOrigin()}/models`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${apiKey}` },
     signal,
   })
+}
+
+export type ServerStatus = { mode: 'demo' | 'server'; configured: boolean }
+
+/** GET /api/status：检查服务端是否已配置密钥；失败会按 401/网络等分类抛出 ApiError。 */
+export const fetchStatus = async (signal?: AbortSignal): Promise<ServerStatus> => {
+  const response = await request(`${apiOrigin()}/status`, { method: 'GET', signal })
+  return (await response.json()) as ServerStatus
 }
 
 /**
@@ -118,7 +146,7 @@ export const uploadFile = async (
     form.append('purpose', purpose)
   }
   form.append('file', file)
-  const response = await request(`${ANTHROPIC_BASE_URL}/files`, {
+  const response = await request(`${anthropicBaseUrl()}/files`, {
     method: 'POST',
     headers: anthropicHeaders(apiKey, true),
     body: form,
@@ -129,7 +157,7 @@ export const uploadFile = async (
 
 /** DELETE /anthropic/v1/files/{file_id} */
 export const deleteFile = async (apiKey: string, fileId: string): Promise<void> => {
-  await request(`${ANTHROPIC_BASE_URL}/files/${encodeURIComponent(fileId)}`, {
+  await request(`${anthropicBaseUrl()}/files/${encodeURIComponent(fileId)}`, {
     method: 'DELETE',
     headers: anthropicHeaders(apiKey, true),
   })
@@ -151,7 +179,7 @@ export async function* streamMessage(
   body: CreateMessageRequest,
   signal: AbortSignal
 ): AsyncGenerator<MessageStreamEvent> {
-  const response = await request(`${ANTHROPIC_BASE_URL}/messages`, {
+  const response = await request(`${anthropicBaseUrl()}/messages`, {
     method: 'POST',
     headers: {
       ...anthropicHeaders(apiKey, hasFile(body)),

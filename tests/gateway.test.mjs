@@ -68,6 +68,30 @@ test('authentication protects both API and static content', async (t) => {
   const response = await fetch(`${url}/api/status`, { headers: { Authorization: `Basic ${Buffer.from('owner:test-password-long').toString('base64')}` } })
   assert.equal(response.status, 200)
 })
+test('app token authenticates a cross-origin first-party client and enables CORS', async (t) => {
+  const url = await fixture(t, { APP_TOKEN: 'app-token-long-secret' })
+  // 只配令牌时，无凭据与错误令牌都被拒绝
+  assert.equal((await fetch(`${url}/api/status`)).status, 401)
+  assert.equal((await fetch(`${url}/api/status`, { headers: { 'x-app-token': 'wrong' } })).status, 401)
+  // 正确令牌 + App 本地 origin 通过，并返回 CORS 头
+  const response = await fetch(`${url}/api/status`, { headers: { 'x-app-token': 'app-token-long-secret', Origin: 'https://localhost' } })
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('access-control-allow-origin'), 'https://localhost')
+  // 令牌不会进入响应正文
+  assert.ok(!(await response.text()).includes('app-token-long-secret'))
+  // OPTIONS 预检被放行
+  const preflight = await fetch(`${url}/api/anthropic/v1/messages`, { method: 'OPTIONS', headers: { Origin: 'https://localhost', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'x-app-token, content-type' } })
+  assert.equal(preflight.status, 204)
+  assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://localhost')
+  assert.match(preflight.headers.get('access-control-allow-headers'), /x-app-token/)
+})
+test('token-only deployment still rejects unauthenticated mutations from non-browser clients', async (t) => {
+  const url = await fixture(t, { APP_TOKEN: 'app-token-long-secret', DEEPSEEK_API_KEY: 'fixture-only' }, async () => Response.json({ id: 'x' }))
+  // 无令牌的 POST（模拟无 Origin 的非浏览器客户端）被 401 拒绝
+  assert.equal((await fetch(`${url}/api/anthropic/v1/messages`, post())).status, 401)
+  // 带令牌的 POST 通过
+  assert.equal((await fetch(`${url}/api/anthropic/v1/messages`, post('{}', { 'x-app-token': 'app-token-long-secret' }))).status, 200)
+})
 test('cross-origin mutations, unexpected Host and arbitrary proxy paths are rejected', async (t) => {
   const url = await fixture(t)
   assert.equal((await fetch(`${url}/api/anthropic/v1/messages`, post('{}', { Origin: 'https://evil.example' }))).status, 403)

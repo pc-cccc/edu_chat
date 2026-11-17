@@ -288,6 +288,19 @@
   }
 }
 
+.serverForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.serverActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 @media not all and (min-width: 768px) {
   .dialog {
     align-self: flex-end;

@@ -38,15 +38,24 @@ export function createAppServer(env = process.env, fetchUpstream = fetch) {
   const port = Number(env.PORT || 8090)
   const publicOrigin = env.PUBLIC_ORIGIN ? new URL(env.PUBLIC_ORIGIN) : null
   const publicMode = !LOOPBACK.has(host) || publicOrigin?.protocol === 'https:'
-  if (publicMode && (!env.APP_USER || (env.APP_PASSWORD?.length ?? 0) < 16 || publicOrigin?.protocol !== 'https:')) {
-    throw new Error('对外提供服务必须配置 HTTPS PUBLIC_ORIGIN、APP_USER 和至少 16 字符的 APP_PASSWORD。')
+  // 对外提供服务需要 HTTPS origin；访问凭据可以是站点账号（浏览器 Basic）或应用令牌（App），二者至少一种。
+  const hasBasicAuth = Boolean(env.APP_USER && (env.APP_PASSWORD?.length ?? 0) >= 16)
+  const hasAppToken = (env.APP_TOKEN?.length ?? 0) >= 16
+  if (publicMode && !hasBasicAuth && !hasAppToken) {
+    throw new Error('对外提供服务必须配置 HTTPS PUBLIC_ORIGIN，并配置 APP_USER/APP_PASSWORD 或 APP_TOKEN（各至少 16 字符）。')
+  }
+  if (publicMode && publicOrigin?.protocol !== 'https:') {
+    throw new Error('对外提供服务必须配置 HTTPS PUBLIC_ORIGIN。')
   }
   if (publicMode && env.APP_MODE === 'demo') throw new Error('演示模式仅允许本机使用。')
   const origin = new URL(env.DEEPSEEK_API_ORIGIN || 'https://api.deepseek.com')
   if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) {
     throw new Error('DEEPSEEK_API_ORIGIN 必须是无路径、无凭据的 HTTPS origin。')
   }
-  const auth = env.APP_USER && env.APP_PASSWORD ? `Basic ${Buffer.from(`${env.APP_USER}:${env.APP_PASSWORD}`).toString('base64')}` : null
+  const auth = hasBasicAuth ? `Basic ${Buffer.from(`${env.APP_USER}:${env.APP_PASSWORD}`).toString('base64')}` : null
+  const appToken = hasAppToken ? String(env.APP_TOKEN) : null
+  // App 的 WebView 打包本地页面时 origin 为 https://localhost（或 iOS 的 capacitor://localhost），跨域调用云端时需放行。
+  const appOrigins = new Set(['https://localhost', 'http://localhost', 'capacitor://localhost'])
   const maxBytes = Number(env.MAX_BODY_BYTES || 33554432)
   let active = 0
   let count = 0
@@ -62,15 +71,31 @@ export function createAppServer(env = process.env, fetchUpstream = fetch) {
     const boundPort = typeof address === 'object' && address ? address.port : port
     const validHosts = new Set([`127.0.0.1:${boundPort}`, `localhost:${boundPort}`, `[::1]:${boundPort}`, publicOrigin?.host])
     if (!validHosts.has(req.headers.host)) return fail(res, 403, 'Host 不允许')
+    // CORS 预检：App 的 WebView 跨域调用前先发 OPTIONS，仅对受信任的本地 App origin 放行。
+    if (req.method === 'OPTIONS' && req.headers.origin && appOrigins.has(req.headers.origin)) {
+      res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
+      res.setHeader('Access-Control-Allow-Methods', req.headers['access-control-request-method'] || 'GET, POST, DELETE')
+      res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'content-type, x-app-token, anthropic-beta, authorization')
+      res.setHeader('Access-Control-Max-Age', '600')
+      res.writeHead(204)
+      return res.end()
+    }
     if (Date.now() >= resetAt) { count = 0; resetAt = Date.now() + 60000 }
-    if (auth && !timingSafeEqual(digest(req.headers.authorization || ''), digest(auth))) {
+    // 首方 App 令牌鉴权：令牌正确即视为可信客户端，跳过站点账号与跨站校验，并为 App 放行跨域响应。
+    const tokenValid = appToken ? timingSafeEqual(digest(req.headers['x-app-token'] || ''), digest(appToken)) : false
+    const basicValid = auth ? timingSafeEqual(digest(req.headers.authorization || ''), digest(auth)) : false
+    if (tokenValid && req.headers.origin && appOrigins.has(req.headers.origin)) {
+      res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
+    }
+    // 只要配置了任一访问凭据，就必须通过令牌或站点账号校验，避免只配令牌时裸请求绕过。
+    if ((auth || appToken) && !tokenValid && !basicValid) {
       if (++count > maxRequests) return fail(res, 429, '请求过于频繁，请稍后再试')
       res.setHeader('WWW-Authenticate', 'Basic realm="Edu_chat", charset="UTF-8"')
-      return fail(res, 401, '请使用站点访问账号登录')
+      return fail(res, 401, '请使用站点访问账号或应用访问令牌登录')
     }
     let url
     try { url = new URL(req.url, 'http://localhost') } catch { return fail(res, 400, '无效 URL') }
-    if (!['GET', 'HEAD'].includes(req.method)) {
+    if (!['GET', 'HEAD'].includes(req.method) && !tokenValid) {
       const acceptedOrigins = new Set(publicOrigin ? [publicOrigin.origin] : [`http://127.0.0.1:${boundPort}`, `http://localhost:${boundPort}`])
       if (req.headers['sec-fetch-site'] === 'cross-site' || (req.headers.origin && !acceptedOrigins.has(req.headers.origin))) return fail(res, 403, '跨站请求已拒绝')
     }

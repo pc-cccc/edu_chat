@@ -81,7 +81,11 @@ export const createConfig = ({
       scriptLoading: 'defer',
       meta: { 'application-version': version },
     }),
-    new rspack.DefinePlugin({ __API_ORIGIN__: JSON.stringify(apiOrigin), __APP_MODE__: JSON.stringify(process.env.APP_MODE ?? 'server') }),
+    new rspack.DefinePlugin({
+      __API_ORIGIN__: JSON.stringify(apiOrigin),
+      __APP_MODE__: JSON.stringify(process.env.APP_MODE ?? 'server'),
+      __APP_TARGET__: JSON.stringify(process.env.APP_TARGET ?? 'web'),
+    }),
     new rspack.CopyRspackPlugin({
       patterns: ['LICENSE', 'NOTICE.md'].map((name) => ({ from: path.resolve(root, name), to: name, toType: 'file' as const })),
     }),
