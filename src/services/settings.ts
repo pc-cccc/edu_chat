@@ -120,7 +120,9 @@ export const setTtsVoice = (ttsVoice: TtsVoice) => {
 }
 
 export const setApiKey = (apiKey: string | null) => {
-  if (__APP_MODE__ !== 'direct') return
+  if (__APP_MODE__ !== 'direct') {
+    return
+  }
   write(KEYS.apiKey, apiKey)
   useSettings.setState({ apiKey })
 }

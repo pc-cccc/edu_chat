@@ -6,13 +6,21 @@ export const ConnectionStatus = () => {
   const zh = useSettings((s) => s.locale === 'zh-CN')
   const [status, setStatus] = useState<'loading' | 'ready' | 'missing' | 'offline'>('loading')
   useEffect(() => {
-    if (__APP_MODE__ !== 'server') return
+    if (__APP_MODE__ !== 'server') {
+      return
+    }
     const controller = new AbortController()
     fetch('/api/status', { signal: controller.signal }).then(async (response) => {
-      if (!response.ok) throw new Error('status')
+      if (!response.ok) {
+        throw new Error('status')
+      }
       const data = await response.json() as { configured: boolean }
       setStatus(data.configured ? 'ready' : 'missing')
-    }).catch(() => { if (!controller.signal.aborted) setStatus('offline') })
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setStatus('offline')
+      }
+    })
     return () => controller.abort()
   }, [])
   const label = __APP_MODE__ === 'demo'
