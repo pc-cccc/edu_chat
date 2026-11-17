@@ -1,0 +1,23 @@
+.education-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 16px; background: #3564e8; color: white; font-size: 25px; font-weight: 600; margin-bottom: 16px; box-shadow: 0 6px 18px #3564e81a; }
+.education-eyebrow { font-size: 15px; font-weight: 600; margin-bottom: 24px; color: var(--dsw-alias-label-primary); }
+.education-eyebrow span { font-size: 10px; letter-spacing: .07em; background: var(--dsw-alias-bg-base); border: 1px solid #8b96aa40; padding: 3px 6px; border-radius: 5px; margin-left: 8px; color: var(--dsw-alias-label-tertiary); }
+.education-subtitle { color: var(--dsw-alias-label-secondary); font-size: 14px; line-height: 1.7; margin: -10px 0 30px; text-align: center; }
+.education-starters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; margin: 18px 0 22px; }
+.education-starters button { display: flex; align-items: center; gap: 9px; padding: 14px 12px; border: 1px solid #8b96aa35; border-radius: 12px; background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: 12px; cursor: pointer; text-align: left; }
+.education-starters button:hover { background: #5278ef0c; border-color: #5278ef80; }
+.education-starters button:focus-visible { outline: 2px solid #5278ef; outline-offset: 3px; }
+.education-starters button span:first-child { font-size: 10px; color: #6f82ac; }
+.education-starters button span:last-child { margin-left: auto; color: #6f82ac; }
+.education-footer { color: var(--dsw-alias-label-tertiary); font-size: 11px; text-align: center; line-height: 1.8; }
+.connection-status { color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.7; text-align: center; margin: 6px 0; }
+.connection-status span { color: #7187bc; font-size: 8px; }
+@media (max-width: 767px) {
+  .education-mark { margin-top: auto; width: 40px; height: 40px; font-size: 21px; }
+  .education-eyebrow { margin-bottom: 18px; }
+  .education-subtitle { font-size: 12px; margin: 12px 0 20px; }
+  .education-starters { gap: 6px; margin: 14px 0 10px; }
+  .education-starters button { padding: 10px 7px; font-size: 11px; gap: 5px; }
+  .education-starters button span:first-child { display: none; }
+  .education-footer { font-size: 10px; margin-bottom: 12px; }
+}
+@media (max-height: 580px) { .education-mark, .education-subtitle, .education-starters { display: none; } }
