@@ -1,0 +1,12 @@
+node_modules
+node_modules_*
+_test_*
+dist
+android
+.git
+.github
+docs
+.env
+.env.*
+!.env.example
+*.log

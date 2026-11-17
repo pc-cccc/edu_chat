@@ -1,0 +1,26 @@
+node_modules/
+node_modules_*/
+_test_*/
+dist/
+build/
+.pnpm-store/
+.cache/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+tmp/
+*.jks
+*.keystore
+
+# Android / Capacitor 生成物与机器相关文件
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/capacitor-cordova-android-plugins/
+.capacitor/
+.idea/
+*.iml

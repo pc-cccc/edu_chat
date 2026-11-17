@@ -1,0 +1,14 @@
+# Edu_chat Worker 部署配置
+# 部署步骤见 docs/SERVERLESS.md
+name = "edu-chat-worker"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# 公开变量（可见，不含密钥）：允许跨域调用的前端域名，多个用英文逗号分隔。
+# 部署后把下面的占位符换成你 Cloudflare Pages 的真实域名（以及自定义域名，如有）。
+[vars]
+ALLOWED_ORIGINS = "https://your-project.pages.dev"
+
+# 密钥变量（务必用命令设置，不要写进本文件或提交 Git）：
+#   npx wrangler secret put DEEPSEEK_API_KEY      # 你的 DeepSeek 密钥 sk-...
+#   npx wrangler secret put SUPABASE_JWT_SECRET   # Supabase 控制台 -> Project Settings -> API -> JWT Secret
