@@ -5,7 +5,15 @@ import type { ChatModel, CreateMessageRequest } from '../api/types.js'
 import { extractFileIds, getFileErrorCode, isRetryableApiError } from '../api/errors.js'
 import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
 import { useSettings } from '../settings.js'
+import { showToast } from '../../components/base/toastState.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
+import {
+  cloudDeleteSession,
+  cloudListSessions,
+  cloudLoadSession,
+  cloudRenameSession,
+  cloudSaveSession,
+} from './cloudSync.js'
 import * as db from './db.js'
 import {
   clearAllDrafts,
@@ -179,6 +187,23 @@ const updateReply = (sessionId: string, reply: AssistantMessage) =>
     ),
   }))
 
+/** 云端保存失败的会话，避免重复弹 toast；成功一次后清除。 */
+const cloudSaveFailures = new Set<string>()
+
+/** serverless 模式下把会话同步到 Supabase；失败只弹一次提示，不阻断本地使用。 */
+const cloudPersist = (session: Session) => {
+  void cloudSaveSession(session)
+    .then(() => {
+      cloudSaveFailures.delete(session.id)
+    })
+    .catch(() => {
+      if (!cloudSaveFailures.has(session.id)) {
+        cloudSaveFailures.add(session.id)
+        showToast({ key: 'cloudSaveFailed', type: 'error' })
+      }
+    })
+}
+
 const persist = (sessionId: string) => {
   const session = getSession(sessionId)
   if (session) {
@@ -188,6 +213,9 @@ const persist = (sessionId: string) => {
     }
     const epoch = historyEpoch
     const files = pendingFiles.get(sessionId)
+    if (__APP_MODE__ === 'serverless') {
+      cloudPersist(session)
+    }
     void db
       .saveSession(session, files)
       .then(() => {
@@ -299,7 +327,17 @@ export const initChat = (): Promise<void> => {
   set({ initError: false })
   initTask = (async () => {
     try {
-      const summaries = await db.loadSessionSummaries()
+      let summaries: SessionSummary[]
+      if (__APP_MODE__ === 'serverless') {
+        // 云端为准；离线时回退到本地缓存。
+        try {
+          summaries = await cloudListSessions()
+        } catch {
+          summaries = await db.loadSessionSummaries()
+        }
+      } else {
+        summaries = await db.loadSessionSummaries()
+      }
       if (epoch === historyEpoch) {
         set({ ready: true, sessions: sortSessions(summaries) })
       }
@@ -332,7 +370,16 @@ const ensureSessionLoaded = (id: string): Promise<void> => {
   sessionLoads.set(id, load)
   load.promise = (async () => {
     try {
-      const stored = await db.loadSession(id)
+      let stored: Session | undefined
+      if (__APP_MODE__ === 'serverless') {
+        try {
+          stored = (await cloudLoadSession(id)) ?? undefined
+        } catch {
+          stored = await db.loadSession(id)
+        }
+      } else {
+        stored = await db.loadSession(id)
+      }
       if (epoch !== historyEpoch || sessionLoads.get(id) !== load) {
         return
       }
@@ -384,6 +431,39 @@ const waitForIdle = (sessionId?: string) =>
       }
     })
   })
+
+/**
+ * 切换账号 / 退出时重置聊天状态：
+ * 先中止所有正在生成的回答并等待收尾（让最后的落盘写回旧账号的本地库），
+ * 再清空内存状态、切换到新账号的本地库。旧账号本地数据保留在原库中，不自动迁移。
+ */
+export const resetChatForUser = async (userId: string | null): Promise<void> => {
+  for (const controller of Object.values(get().streaming)) {
+    controller.abort()
+  }
+  await waitForIdle()
+  historyEpoch += 1
+  initTask = undefined
+  sessionLoads.clear()
+  sessionAccess.clear()
+  unsavedSessions.clear()
+  pendingFiles.clear()
+  deletingSessions.clear()
+  streamFlushes.clear()
+  clearAllDrafts()
+  db.setUserScope(userId)
+  set({
+    ready: false,
+    initError: false,
+    importingHistory: false,
+    sessions: [],
+    sessionCache: {},
+    sessionLoadErrors: {},
+    sessionSaveErrors: {},
+    activeId: null,
+    streaming: {},
+  })
+}
 
 /**
  * 替换历史对话：先写入暂存，成功后原子替换旧记录；写入为空即删除全部会话与附件。
@@ -474,6 +554,11 @@ export const renameSession = (id: string, title: string) => {
       ),
     }))
     void db.renameSession(id, title).catch(db.reportStorageError('rename session'))
+    if (__APP_MODE__ === 'serverless') {
+      void cloudRenameSession(id, title).catch(() => {
+        showToast({ key: 'cloudSaveFailed', type: 'error' })
+      })
+    }
   }
 }
 
@@ -501,6 +586,11 @@ const removeSessionData = async (id: string): Promise<boolean> => {
       return false
     }
     await db.deleteSession(id)
+    if (__APP_MODE__ === 'serverless') {
+      await cloudDeleteSession(id).catch(() => {
+        showToast({ key: 'cloudSaveFailed', type: 'error' })
+      })
+    }
     if (epoch !== historyEpoch) {
       return true
     }

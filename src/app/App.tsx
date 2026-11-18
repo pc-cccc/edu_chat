@@ -5,6 +5,7 @@ import { useIsMobile, useMobileViewport, usePreventPageScroll } from './viewport
 import {
   bindChatPersistence,
   initChat,
+  resetChatForUser,
   retrySaveSessions,
   selectSession,
   useChatStore,
@@ -24,6 +25,7 @@ import { CollapsedSider } from '../components/sider/CollapsedSider.js'
 import { closeMobileSider } from '../components/sider/mobileSiderState.js'
 import { MobileSider, Sider } from '../components/sider/Sider.js'
 import { AuthGate } from '../components/auth/AuthGate.js'
+import { useSupabaseAuth } from '../services/supabase/client.js'
 import styles from './App.module.css'
 
 export const App = () => {
@@ -49,6 +51,7 @@ export const App = () => {
     state.activeId === null ? false : Object.hasOwn(state.streaming, state.activeId)
   )
   const activeId = useChatStore((state) => state.activeId)
+  const userId = useSupabaseAuth((s) => s.user?.id ?? null)
 
   usePreventPageScroll(isMobile)
 
@@ -68,9 +71,24 @@ export const App = () => {
   useEffect(closeMobileSider, [activeId, isMobile])
 
   useEffect(() => {
-    void initChat()
-    // 直连模式发送时再提示配置密钥。
+    if (__APP_MODE__ !== 'serverless') {
+      void initChat()
+      // 直连模式发送时再提示配置密钥。
+    }
   }, [])
+
+  // serverless：登录/退出/切换账号时，重置聊天状态并加载当前用户的本地缓存。
+  useEffect(() => {
+    if (__APP_MODE__ !== 'serverless') {
+      return
+    }
+    void (async () => {
+      await resetChatForUser(userId)
+      if (userId) {
+        void initChat()
+      }
+    })()
+  }, [userId])
 
   return (
     <AuthGate>

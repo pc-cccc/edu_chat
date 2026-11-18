@@ -1,4 +1,4 @@
-# Edu_chat V0.2.1
+# Edu_chat V0.2.2
 
 基于 [DeepSeek 官方 chat-demo](https://github.com/deepseek-ai/chat-demo) 的个人聊天项目，**非 DeepSeek 官方产品**。React 18、TypeScript、Rspack 与 Capacitor Android，使用官方 demo 的 Anthropic 兼容 Messages / Files 协议。
 
@@ -6,7 +6,7 @@
 
 本版移除首页学习入口、教育文案和个人教育助手提示，改为通用聊天。保留钥匙图标、会话历史、流式回答、深度思考、搜索、文件、Markdown 和数学公式界面。
 
-> 尚未完成（下一步前端接线）：云端聊天历史（现为本地 IndexedDB）、多人实时协作 UI、学习组件勾选 UI；对应数据表与读写/订阅函数已就绪。
+> 尚未完成：多人实时协作 UI、学习组件勾选 UI（数据表与订阅/读写函数已就绪）；真实部署与真机验收待账号。
 
 ## 本地启动
 

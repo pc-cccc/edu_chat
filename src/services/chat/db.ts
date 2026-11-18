@@ -33,6 +33,23 @@ interface ChatDB extends DBSchema {
 
 let dbPromise: Promise<IDBPDatabase<ChatDB>> | null = null
 
+/**
+ * 本地缓存的数据库名按用户隔离：
+ * - 未登录 / server/direct/demo 模式：沿用旧命名空间 zhixue-chat，兼容历史数据；
+ * - serverless 登录用户：zhixue-chat:user:<userId>，互不串数据。
+ * 旧 zhixue-chat 里的数据不会自动归到任何新账号，保留为备份，由用户显式迁移。
+ */
+let currentDbName = 'zhixue-chat'
+
+export const setUserScope = (userId: string | null): void => {
+  const name = userId ? `zhixue-chat:user:${userId}` : 'zhixue-chat'
+  if (name === currentDbName) {
+    return
+  }
+  currentDbName = name
+  dbPromise = null
+}
+
 const storedSummary = (session: Session): StoredSessionSummary => ({
   ...toSessionSummary(session),
   fileIds: [
@@ -54,7 +71,7 @@ const abortTransaction = (tx: { abort(): void }) => {
 
 // 每个操作拿到连接后立即创建事务；IndexedDB 按创建顺序执行范围重叠的事务，读取总能看到之前发起的写入。
 const getDB = () =>
-  (dbPromise ??= openDB<ChatDB>('zhixue-chat', DB_VERSION, {
+  (dbPromise ??= openDB<ChatDB>(currentDbName, DB_VERSION, {
     upgrade(db, _oldVersion, _newVersion, tx) {
       // 初始化当前格式需要的存储与索引，不迁移旧消息。
       for (const name of ['sessions', 'files', 'sessionsStaging', 'filesStaging'] as const) {

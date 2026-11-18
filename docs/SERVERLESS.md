@@ -1,121 +1,116 @@
-# Edu_chat 0 成本 Serverless 部署指南
+# Edu_chat 0 成本 Serverless 部署指南（V0.2.2）
 
-本指南把项目改成「纯前端 + 免费云服务」，**不需要服务器、不需要 Docker、0 元部署**：
+架构：**纯前端 + 免费云服务**，不需要服务器 / Docker：
 
-- **前端页面** → Cloudflare Pages（免费，全球 CDN）
-- **API 代理 + 密钥注入** → Cloudflare Workers（免费，每天 10 万次请求额度）
-- **登录 / 聊天历史 / 组件配置 / 多人协作** → Supabase（免费额度）
-- **DeepSeek 密钥** → 只放在 Worker 里，前端和 Supabase 都拿不到
+- **前端页面** → Cloudflare Pages（免费 CDN）
+- **API 代理 + 密钥注入 + 鉴权 + 文件归属** → Cloudflare Workers（免费）
+- **登录 / 云端历史 / 文件归属** → Supabase（免费额度）
+- **DeepSeek 密钥** → 只放在 Worker 的 Secret 里，前端与 Supabase 都拿不到
 
-> 旧的 `server/` 目录和 `Dockerfile` 已不再使用，但保留在仓库里（不影响部署）。本方案的聊天请求走「前端 → Worker → DeepSeek」。
+> 旧的 `server/` 与 `Dockerfile` 已废弃保留。Worker 用 `jose` 通过 Supabase 的 JWKS 校验真实用户 token（拒绝 anon/service_role），因此**必须用 wrangler CLI 部署**（在线编辑器无法打包 npm 依赖）。
 
 ---
 
-## 0. 你需要准备 3 个账号（都免费）
+## 0. 准备 3 个免费账号
 
 | 服务 | 网址 | 用途 |
 | --- | --- | --- |
-| DeepSeek | https://platform.deepseek.com | 拿 API Key（会扣你 DeepSeek 余额，不是部署费） |
-| Cloudflare | https://dash.cloudflare.com/sign-up | Pages 托管 + Worker |
-| Supabase | https://supabase.com/dashboard | 登录 + 数据库 + 实时协作 |
-
----
+| DeepSeek | https://platform.deepseek.com | 拿 API Key（扣你 DeepSeek 余额，不是部署费） |
+| Cloudflare | https://dash.cloudflare.com/sign-up | Pages + Worker |
+| Supabase | https://supabase.com/dashboard | 登录 + 数据库 + 文件归属 |
 
 ## 1. 拿 DeepSeek API Key
 
-1. 打开 https://platform.deepseek.com 登录。
-2. 左侧 **API Keys** → **Create API Key**，复制 `sk-` 开头的字符串，先存到备忘录。
-3. 这串密钥**只填到第 3 步的 Worker 里**，不要贴进聊天、不要写进代码或 Git。
+https://platform.deepseek.com → 登录 → 左侧 **API Keys** → **Create**，复制 `sk-` 开头字符串，存到备忘录。**只填到第 3 步 Worker**，不贴聊天、不进代码/Git。
 
----
+## 2. 建 Supabase 项目并执行 SQL
 
-## 2. 创建 Supabase 项目并建表
+1. https://supabase.com/dashboard 登录 → **New project**（名字如 `edu-chat`，设数据库密码，免费档）。
+2. 左侧 **SQL Editor** → **New query** → 把 `supabase/schema.sql` 整段粘贴 → **Run**。
+3. 再执行 `supabase/test-rls.sql`（自检脚本，确认 RLS/策略/Realtime 已生效）。
+4. 记录三样（**Project Settings → API**）：
+   - **Project URL**：`https://xxxx.supabase.co`
+   - **anon public** 密钥：`eyJ...`（公开值）
+   - **JWT Secret**（旧项目回退才需要；新项目用 JWKS，可不管）
+5. **Authentication → URL Configuration**：把 **Site URL** 和 **Redirect URLs** 都加上你的 Pages 域名（第 4 步会拿到，可先留空回头补），本地调试加 `http://localhost:8090`。
+6. 个人自用可在 **Authentication → Providers → Email** 里关闭 **Confirm email**，省去收验证邮件。
 
-1. 打开 https://supabase.com/dashboard 登录（GitHub 或邮箱均可）。
-2. 点 **New project**，填名字（如 `edu-chat`），设一个数据库密码（记好），地域选 `Southeast Asia (Singapore)` 或离你近的，**免费档**即可。
-3. 进入项目后，左侧 **SQL Editor** → **New query**。
-4. 打开本项目 `supabase/schema.sql`，**全选复制**，粘贴进编辑器，点 **Run**。
-   - 这会创建 6 张表（profiles / chat_rooms / room_members / messages / user_preferences / presence）、行级安全策略、注册自动建资料触发器和 Realtime 发布。
-5. 记下两样东西（都在左侧 **Project Settings → API**）：
-   - **Project URL**：形如 `https://abcdefgh.supabase.co`
-   - **anon public** 密钥：以 `eyJ...` 开头的那串（这是公开值，可出现在前端）
-6. 再点 **Project Settings → API → JWT Settings**，复制 **JWT Secret**（很长的一串），这个只填到 Worker，别外泄。
+## 3. 部署 Worker（密钥注入 + 鉴权）
 
-> 可选：默认注册会发邮箱验证。若只是自己/家人用，可在 **Authentication → Providers → Email** 里把 **Confirm email** 关掉，省去收邮件步骤。
+在项目根目录 PowerShell：
 
----
+```powershell
+cd workers
+npm install
+npx wrangler login          # 会打开浏览器登录 Cloudflare
+```
 
-## 3. 部署 Cloudflare Worker（密钥注入层）
+编辑 `workers/wrangler.toml` 的 `[vars]`，把占位符换成真实值：
+- `ALLOWED_ORIGINS` = Pages 域名（第 4 步拿到后补，可先留空）
+- `SUPABASE_URL` = 第 2 步的 Project URL
+- `SUPABASE_ANON_KEY` = 第 2 步的 anon public 密钥
 
-1. 打开 https://dash.cloudflare.com 登录。
-2. 左侧 **Workers & Pages** → 点 **Create** → **Create Worker**，名字填 `edu-chat-worker`，点 **Deploy**（先随便部署一个默认示例）。
-3. 部署后进入这个 Worker，点 **Edit code**（在线编辑器），把本项目 `workers/worker.js` 的内容**全选覆盖粘贴**进去，点 **Deploy**。
-4. 回到 Worker 页面 → **Settings → Variables and Secrets**：
-   - 在 **Secrets（加密）** 里点 **Add**，分两次添加：
-     - 名字 `DEEPSEEK_API_KEY`，值 = 第 1 步的 `sk-...`
-     - 名字 `SUPABASE_JWT_SECRET`，值 = 第 2 步的 JWT Secret
-   - 在 **Variables（普通）** 里点 **Add**，加：
-     - 名字 `ALLOWED_ORIGINS`，值 = 你的 Pages 域名（第 4 步会拿到，可先留空，部署完 Pages 再回来填）
-5. 记下 Worker 的默认域名：`https://edu-chat-worker.<你的账号名>.workers.dev`，第 4 步要用。
+设置密钥（只进 Cloudflare，不进文件/Git）：
 
-> 也可以本地用 Wrangler CLI 部署，见文件 `workers/wrangler.toml` 顶部的注释。
+```powershell
+npx wrangler secret put DEEPSEEK_API_KEY   # 粘贴你的 sk-...
+```
 
----
+部署：
 
-## 4. 部署 Cloudflare Pages（前端页面）
+```powershell
+npx wrangler deploy
+```
 
-1. 在 Cloudflare **Workers & Pages** 里点 **Create → Pages → Connect to Git**（推荐先把本仓库推到 GitHub/Gitee），或选择 **Direct Upload**（直接上传构建产物）。
-2. 授权并选择本仓库后，填构建配置：
+记下 Worker 域名：`https://edu-chat-worker.<你的账号>.workers.dev`。
+
+> `SUPABASE_JWT_SECRET` 只在老项目用 HS256 签名时才需要；新项目用户 token 是 ES256，通过 JWKS 校验，无需此 Secret。
+
+## 4. 部署 Pages（前端）
+
+1. Cloudflare **Workers & Pages → Create → Pages → Connect to Git**（推荐先把仓库推到 GitHub），或 **Direct Upload**。
+2. 构建配置：
    - **Build command**：`npm ci && npm run build:serverless`
-   - **Build output directory**：`dist`
-   - 如果界面上能选 Node 版本，选 **22**；或项目根目录已有 `.nvmrc` 自动指定。
-3. 在 **Environment variables** 里添加三个（都是公开值，不是密钥）：
-   | 变量名 | 值 |
+   - **Output directory**：`dist`
+   - Node 版本选 **22**（项目根有 `.nvmrc` 自动指定）
+3. **Environment variables**（构建期变量，都是公开值）：
+   | 变量 | 值 |
    | --- | --- |
-   | `WORKER_ORIGIN` | 第 3 步的 Worker 域名，如 `https://edu-chat-worker.xxx.workers.dev` |
-   | `SUPABASE_URL` | 第 2 步的 Project URL |
-   | `SUPABASE_ANON_KEY` | 第 2 步的 anon public 密钥 |
-4. 保存并部署。成功后你会得到一个 Pages 域名：`https://<项目名>.pages.dev`。
-5. **回到第 3 步**，把 Worker 的 `ALLOWED_ORIGINS` 变量值改成这个 Pages 域名（有自定义域名就逗号分隔都填上）。
+   | `WORKER_ORIGIN` | 第 3 步 Worker 域名 |
+   | `SUPABASE_URL` | 第 2 步 Project URL |
+   | `SUPABASE_ANON_KEY` | 第 2 步 anon public 密钥 |
+4. 部署成功后拿到 `https://<项目>.pages.dev`，回到第 2、3 步补上 Site URL / Redirect URLs / ALLOWED_ORIGINS。
 
----
+## 5. 验证（务必真实走通，别只看"构建成功"）
 
-## 5. 验证
-
-1. 浏览器打开你的 Pages 域名，应出现 **Edu_chat 登录页**。
-2. 注册/登录一个邮箱账号（首次注册会写一条 profiles）。
-3. 登录后发一条消息，看是否**流式**输出。再测：停止生成、深度思考、搜索、文件上传。
-4. 打开另一个浏览器/手机用**另一个邮箱**登录，进同一聊天室，看消息是否实时同步（Realtime）。
-
----
+1. 打开 Pages 域名 → 出现 **Edu_chat 登录页** → 注册/登录一个邮箱账号。
+2. 发消息 → **逐字流式输出** → 点「停止生成」能立即停下。
+3. 退出登录 → 聊天列表清空；重新登录 → **云端历史**回到列表。
+4. 换一个浏览器 / 无痕窗口用**另一个邮箱**登录 → 看不到第一个账号的任何会话。
+5. 让登录 token 过期（或手动删掉本地会话）→ 再发消息应提示重新登录，而不是报错卡死。
 
 ## 6. 费用与免费额度（0 成本的边界）
 
-| 服务 | 免费额度 | 什么时候开始花钱 |
+| 服务 | 免费额度 | 什么时候花钱 |
 | --- | --- | --- |
-| Cloudflare Pages | 无限静态请求（合理使用） | 基本不花钱 |
-| Cloudflare Workers | 每天 10 万次请求 | 超过后才按量计费 |
-| Supabase | 2 个项目、500MB 数据库、5 万月活 | 超量后升级付费 |
-| DeepSeek | 无免费额度 | **按聊天量扣你自己的 DeepSeek 余额** |
+| Cloudflare Pages | 静态请求免费（合理使用） | 基本不花钱 |
+| Cloudflare Workers | 每天 10 万次请求 | 超过后按量 |
+| Supabase | 2 个项目、500MB 库、5 万月活 | 超量升级 |
+| DeepSeek | 无免费额度 | **按聊天量扣你自己的余额** |
 
-也就是说：**部署本身 0 元；只有你调用 DeepSeek 时，DeepSeek 会按用量扣费**（和原来一样）。
+**部署本身 0 元；只有调用 DeepSeek 时按量扣费。**
 
----
+## 7. 已完成 / 待办
 
-## 7. 已经做完 / 还差一步（前端集成进度）
+已完成（V0.2.2）：
+- Worker：JWKS 校验真实用户（拒 anon/service_role）+ 全响应 CORS + 流式超时/取消 + 文件归属。
+- 数据库：会话/消息/文件归属表 + 无递归 RLS + 房主自动入会 + 幂等迁移。
+- 前端：邮箱登录、账号隔离（本地缓存按用户分区、切换即清理）、个人云端历史（稳定 ID、幂等 upsert、分页、分支/思考/状态全保留）。
 
-本轮已完成并可直接部署的基础设施：
+仍待办：
+- 多人共享聊天室 UI、学习组件勾选 UI（数据表已就绪，本轮未做 UI）。
+- 真机 APK 构建与安装（见 ANDROID 指南；需 Android 工具链与签名）。
 
-- ✅ `workers/worker.js`：完整的 DeepSeek 代理（Supabase 登录校验 + 注入密钥 + 流式转发 + 错误脱敏）。
-- ✅ `supabase/schema.sql`：消息表、偏好表、房间/成员/在线状态表 + 行级安全 + Realtime。
-- ✅ `src/services/supabase/client.ts`：supabase-js 客户端 + 登录/注册/退出 + 消息读写 + 偏好读写 + Realtime 订阅函数。
-- ✅ 前端 API 层已切到 Worker（`src/services/api/client.ts`），登录态用 Supabase JWT 传给 Worker。
-- ✅ 新增登录墙 `src/components/auth/AuthGate.tsx`（serverless 模式下先登录才能用）。
-
-还需继续做（下一步前端接线，不影响先跑通聊天）：
-
-- ⏳ 聊天历史目前仍是浏览器本地 IndexedDB；要改成 Supabase 云端历史，需把 `services/chat/store.ts` 的读写接到 `supabase/client.ts` 的 `listMessages/insertMessage`。
-- ⏳ 多人协作的「在线状态/同一聊天室」UI 尚未画（数据表和 `subscribeRoom` 已就绪）。
-- ⏳ 学习组件的勾选界面尚未画（`user_preferences` 表和读写函数已就绪，UI 是占位）。
-
-这三项是纯前端接线，做完即可实现「云端历史 + 多人实时 + 组件配置」。
+未验证（需账号/真机）：
+- 未实际创建 Cloudflare/Supabase 项目、未用真实 DeepSeek 密钥联调。
+- 未做真机、移动网络、电脑关机后的独立验证。

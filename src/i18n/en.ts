@@ -32,6 +32,7 @@ export const en = {
   sessionLoadFailed: 'Unable to load this chat. Please try again.',
   sessionSaveFailed:
     'Chats or attachments have not been saved locally. Retry before closing this page.',
+  cloudSaveFailed: 'Cloud save failed. Please check your network and retry.',
   sessionDeleteFailed: 'Unable to delete this chat. Please try again.',
   settings: 'Settings',
   appName: 'Edu_chat',

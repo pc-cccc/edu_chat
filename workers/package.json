@@ -1,0 +1,10 @@
+{
+  "name": "edu-chat-worker",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "description": "Edu_chat Cloudflare Worker：DeepSeek 代理 + Supabase 鉴权 + 文件归属校验",
+  "dependencies": {
+    "jose": "^5.9.6"
+  }
+}

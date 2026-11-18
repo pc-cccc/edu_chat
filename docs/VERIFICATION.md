@@ -66,3 +66,22 @@ APK SHA-256：F45617C2837BC0F560D0157FF86686AE2CD0849FD87CA2768E1E98BDDEB3F6AF
 - 未实际创建 Cloudflare/Supabase 项目部署，未用真实 DeepSeek 密钥联调（需用户账号）。
 - 聊天历史仍为本地 IndexedDB，尚未接到 Supabase messages 表（`store.ts` 待接 `listMessages/insertMessage`）。
 - 多人协作在线状态、同一聊天室、组件勾选的 UI 尚未实现（表与订阅/读写函数已就绪）。
+
+## 2026-11-18 第二轮：Worker 鉴权 / 数据库权限 / 账号隔离 / 云端历史 / 安卓构建
+
+按 7 阶段执行，基线 f057b35。版本升至 0.2.2（versionCode 3）。
+
+### 已完成
+
+- Worker 重写（`workers/worker.js`）：改用 `jose` + Supabase JWKS 校验真实用户 token（ES256/RS256，旧 HS256 回退），校验 iss/aud/role/sub/exp，拒绝 anon/service_role；所有响应统一 CORS；流式手动泵流 + 超时/客户端断开传播；文件上传/引用/删除归属校验（经 Supabase files 表 + PostgREST）。新增 `workers/package.json` 依赖 jose。
+- 数据库重写（`supabase/schema.sql`）：`is_room_member` SECURITY DEFINER 消除 RLS 递归；消除列名歧义；房主自动入会触发器；`messages.user_id` 默认 auth.uid()；messages 改为 `data jsonb` 完整消息 + 稳定 id/parent_id/created_at；新增 `files` 归属表；会话 CRUD 权限；幂等迁移与 Realtime 发布幂等。
+- 账号隔离：`db.ts` 按用户分库、`store.ts` 新增 `resetChatForUser`、`App.tsx` 用户切换联动。
+- 个人云端历史：新增 `src/services/chat/cloudSync.ts`（稳定 ID、幂等 upsert、分页、分支/思考/状态全保留）；`store.ts` 落盘同步、启动云端优先、改名/删除同步、失败 toast。
+- 安卓 serverless 构建：新增 `build:android:serverless` 脚本与构建变量校验（缺失即报错）；版本 0.2.2 / versionCode 3。
+- 测试：新增 `tests/worker.test.mjs`（鉴权拒 anon/service_role/过期、接受真实用户、CORS、预检）。`npm test` 26/26 通过；`npm run type`、`npm run lint`、`npm run build:serverless` 均通过。
+- 文档：更新 `docs/SERVERLESS.md`，新增 `supabase/test-rls.sql`（RLS 自检 + 两用户手动隔离步骤）。
+
+### 阻塞 / 待办（需账号或工具链）
+
+- 未实际部署到 Cloudflare/Supabase，未用真实 DeepSeek 密钥联调；数据库 RLS 两用户隔离、账号切换、云端跨设备保存均待真实环境验收。
+- APK 无法在本机构建：本机无 Android 工具链（JDK21/SDK），且**原调试签名 debug.keystore 不在本机**（work/toolchain 缺失，全盘搜索未找到）。覆盖安装需找回原 keystore；否则需新签名并先卸载旧包。

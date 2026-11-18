@@ -1,5 +1,6 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import { create } from 'zustand'
+import type { Message } from '../chat/types.js'
 
 /**
  * Supabase 客户端（仅 serverless 模式使用）。
@@ -61,72 +62,6 @@ export const signOut = () => getSupabase().auth.signOut()
 // 数据访问（供聊天历史 / 组件偏好 / 多人协作使用）
 // ---------------------------------------------------------------------------
 
-export type ChatRoom = { id: string; name: string; owner_id: string; created_at: string }
-
-export type ChatMessageRow = {
-  id: string
-  room_id: string
-  user_id: string
-  role: 'user' | 'assistant'
-  content: string | null
-  blocks: Record<string, unknown> | null
-  parent_id: string | null
-  model: string | null
-  thinking: boolean
-  search: boolean
-  files: unknown | null
-  status: string
-  created_at: string
-}
-
-/** 读取一个聊天室的消息（按时间正序）。 */
-export const listMessages = async (roomId: string): Promise<ChatMessageRow[]> => {
-  const { data, error } = await getSupabase()
-    .from('messages')
-    .select('*')
-    .eq('room_id', roomId)
-    .order('created_at', { ascending: true })
-  if (error) {
-    throw error
-  }
-  return (data ?? []) as ChatMessageRow[]
-}
-
-/** 写入一条聊天消息。 */
-export const insertMessage = async (message: {
-  room_id: string
-  role: 'user' | 'assistant'
-  content?: string | null
-  blocks?: Record<string, unknown> | null
-  parent_id?: string | null
-  model?: string | null
-  thinking?: boolean
-  search?: boolean
-  files?: unknown | null
-  status?: string
-}): Promise<ChatMessageRow> => {
-  const { data, error } = await getSupabase()
-    .from('messages')
-    .insert({
-      room_id: message.room_id,
-      role: message.role,
-      content: message.content ?? null,
-      blocks: message.blocks ?? null,
-      parent_id: message.parent_id ?? null,
-      model: message.model ?? null,
-      thinking: message.thinking ?? false,
-      search: message.search ?? false,
-      files: message.files ?? null,
-      status: message.status ?? 'done',
-    })
-    .select()
-    .single()
-  if (error) {
-    throw error
-  }
-  return data as ChatMessageRow
-}
-
 /** 读取当前用户的组件勾选列表。 */
 export const getPreferences = async (): Promise<string[]> => {
   const { data, error } = await getSupabase()
@@ -155,28 +90,22 @@ export const savePreferences = async (components: string[]): Promise<void> => {
   }
 }
 
-/** 订阅某个聊天室的实时变更（新消息/在线状态），返回频道对象，可 channel.unsubscribe()。 */
+/** 订阅某个会话的实时新消息（多人协作预留），返回频道对象，可 channel.unsubscribe()。 */
 export const subscribeRoom = (
   roomId: string,
-  onMessage: (row: ChatMessageRow) => void,
-  onPresence?: (row: { user_id: string; online: boolean; last_seen: string }) => void
+  onMessage: (message: Message) => void
 ): RealtimeChannel => {
   const channel = getSupabase().channel(`room-${roomId}`)
   channel.on(
     'postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` },
-    (payload) => onMessage(payload.new as ChatMessageRow)
+    (payload) => {
+      const row = payload.new as { data?: unknown } | null
+      if (row && typeof row.data === 'object') {
+        onMessage(row.data as Message)
+      }
+    }
   )
-  if (onPresence) {
-    channel.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'presence', filter: `room_id=eq.${roomId}` },
-      (payload) =>
-        onPresence(
-          payload.new as { user_id: string; online: boolean; last_seen: string }
-        )
-    )
-  }
   void channel.subscribe()
   return channel
 }

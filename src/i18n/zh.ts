@@ -29,6 +29,7 @@ export const zh = {
   sessionListLoadFailed: '对话列表加载失败，请重试',
   sessionLoadFailed: '对话加载失败，请重试',
   sessionSaveFailed: '对话或附件尚未保存到本机，关闭页面可能丢失，请重试',
+  cloudSaveFailed: '云端保存失败，请检查网络后重试',
   sessionDeleteFailed: '删除对话失败，请重试',
   settings: '设置',
   appName: 'Edu_chat',

@@ -1,14 +1,18 @@
-# Edu_chat Worker 部署配置
-# 部署步骤见 docs/SERVERLESS.md
+# Edu_chat Worker 部署配置（依赖 jose，用 wrangler 打包后部署）
+# 步骤：cd workers && npm install && npx wrangler login && npx wrangler deploy
 name = "edu-chat-worker"
 main = "worker.js"
 compatibility_date = "2024-11-01"
 
-# 公开变量（可见，不含密钥）：允许跨域调用的前端域名，多个用英文逗号分隔。
-# 部署后把下面的占位符换成你 Cloudflare Pages 的真实域名（以及自定义域名，如有）。
+# 公开变量（可见，不含密钥）。部署前把占位符换成真实值：
 [vars]
+# 允许跨域调用的前端域名，多个用英文逗号分隔
 ALLOWED_ORIGINS = "https://your-project.pages.dev"
+# Supabase 项目 URL（同时用于 JWT 的 JWKS/issuer 校验）
+SUPABASE_URL = "https://your-project.supabase.co"
+# Supabase 的 anon public 密钥（公开值，用于以用户身份调用 PostgREST 做文件归属校验）
+SUPABASE_ANON_KEY = "your-anon-key"
 
 # 密钥变量（务必用命令设置，不要写进本文件或提交 Git）：
 #   npx wrangler secret put DEEPSEEK_API_KEY      # 你的 DeepSeek 密钥 sk-...
-#   npx wrangler secret put SUPABASE_JWT_SECRET   # Supabase 控制台 -> Project Settings -> API -> JWT Secret
+#   npx wrangler secret put SUPABASE_JWT_SECRET   # 可选：旧 HS256 项目才需要，见 worker.js
