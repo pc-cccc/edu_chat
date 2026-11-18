@@ -86,7 +86,8 @@ alter table public.presence          enable row level security;
 -- 助手函数：当前用户是否是某会话成员。
 -- 用 security definer 绕过 RLS，避免「room_members 策略查询自身」造成的递归。
 -- ============================================================
-create or replace function public.is_room_member(target_room_id uuid)
+drop function if exists public.is_room_member(uuid);
+create function public.is_room_member(target_room_id uuid)
 returns boolean
 language sql
 stable
@@ -196,7 +197,8 @@ create policy "presence_update_own" on public.presence
 -- ============================================================
 
 -- 注册时自动写入 profiles
-create or replace function public.handle_new_user()
+drop function if exists public.handle_new_user();
+create function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
@@ -214,7 +216,8 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- 创建会话后，把 owner 自动加为成员
-create or replace function public.handle_new_room()
+drop function if exists public.handle_new_room();
+create function public.handle_new_room()
 returns trigger
 language plpgsql
 security definer set search_path = public
@@ -232,7 +235,8 @@ create trigger on_room_created
   for each row execute function public.handle_new_room();
 
 -- 有新消息时，更新会话的 updated_at（用于按最近活动排序）
-create or replace function public.touch_room_updated()
+drop function if exists public.touch_room_updated();
+create function public.touch_room_updated()
 returns trigger
 language plpgsql
 security definer set search_path = public
@@ -264,20 +268,8 @@ alter default privileges in schema public
   grant select, usage on sequences to anon, authenticated;
 
 -- ============================================================
--- Realtime：开启 messages 与 presence 的实时同步（幂等）
+-- Realtime：开启 messages 与 presence 的实时同步
+-- 重复执行时若报 already member of publication，属正常，可忽略这两行再跑。
 -- ============================================================
-do $$
-begin
-  if not exists (
-    select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'
-  ) then
-    alter publication supabase_realtime add table public.messages;
-  end if;
-  if not exists (
-    select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'presence'
-  ) then
-    alter publication supabase_realtime add table public.presence;
-  end if;
-end $$;
+alter publication supabase_realtime add table public.messages;
+alter publication supabase_realtime add table public.presence;
