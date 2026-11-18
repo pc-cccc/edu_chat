@@ -253,6 +253,17 @@ select id, owner_id, 'owner' from public.chat_rooms
 on conflict (room_id, user_id) do nothing;
 
 -- ============================================================
+-- Data API 访问授权（幂等；RLS 仍控制具体行可见性，anon 无登录看不到任何行）
+-- ============================================================
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on all tables in schema public to anon, authenticated;
+grant select, usage on all sequences in schema public to anon, authenticated;
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to anon, authenticated;
+alter default privileges in schema public
+  grant select, usage on sequences to anon, authenticated;
+
+-- ============================================================
 -- Realtime：开启 messages 与 presence 的实时同步（幂等）
 -- ============================================================
 do $$
