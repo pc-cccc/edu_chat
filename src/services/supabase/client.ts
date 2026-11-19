@@ -1,5 +1,6 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import { create } from 'zustand'
+import { supabaseFetch } from './transport.js'
 import type { Message } from '../chat/types.js'
 
 /**
@@ -12,6 +13,7 @@ let client: SupabaseClient | null = null
 export const getSupabase = (): SupabaseClient => {
   if (!client) {
     client = createClient(__SUPABASE_URL__, __SUPABASE_ANON_KEY__, {
+      global: { fetch: supabaseFetch },
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     })
   }
@@ -46,7 +48,10 @@ export const initSupabaseAuth = (): void => {
 
 /** 供 API 层使用：拿到当前 Supabase 登录态 token，交给 Worker 校验。 */
 export const getAccessToken = async (): Promise<string | null> => {
-  const { data } = await getSupabase().auth.getSession()
+  const { data, error } = await getSupabase().auth.getSession()
+  if (error) {
+    throw error
+  }
   return data.session?.access_token ?? null
 }
 
@@ -64,10 +69,7 @@ export const signOut = () => getSupabase().auth.signOut()
 
 /** 读取当前用户的组件勾选列表。 */
 export const getPreferences = async (): Promise<string[]> => {
-  const { data, error } = await getSupabase()
-    .from('user_preferences')
-    .select('components')
-    .single()
+  const { data, error } = await getSupabase().from('user_preferences').select('components').single()
   if (error) {
     return []
   }

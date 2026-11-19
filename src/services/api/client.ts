@@ -1,3 +1,4 @@
+import { waitForSession } from './requestDeadline.js'
 import { translate, type TranslationMessage } from '../../i18n/index.js'
 import { getAccessToken } from '../supabase/client.js'
 import { getAppOrigin, getAppToken } from './auth.js'
@@ -22,7 +23,7 @@ export const apiOrigin = (): string => {
     return __API_ORIGIN__
   }
   if (__APP_MODE__ === 'serverless') {
-    return __WORKER_ORIGIN__
+    return __APP_TARGET__ === 'web' ? '/api' : __WORKER_ORIGIN__
   }
   const origin = getAppOrigin()
   if (!origin) {
@@ -97,7 +98,11 @@ export const request = async (
       // serverless 模式：前端不持有 DeepSeek 密钥，携带 Supabase 登录态交给 Worker 校验。
       headers.delete('x-api-key')
       headers.delete('x-app-token')
-      const accessToken = await getAccessToken()
+      headers.delete('Authorization')
+      const accessToken = await waitForSession(getAccessToken(), init.signal)
+      if (!accessToken) {
+        throw new ApiError('http', '登录已失效，请退出后重新登录', 401)
+      }
       if (accessToken) {
         headers.set('Authorization', `Bearer ${accessToken}`)
       }
@@ -118,6 +123,9 @@ export const request = async (
       ...(__APP_MODE__ !== 'direct' ? { redirect: 'error' as const } : {}),
     })
   } catch (error) {
+    if (error instanceof ApiError) {
+      throw error
+    }
     if (init.signal?.aborted) {
       throw error
     }

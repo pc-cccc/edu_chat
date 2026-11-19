@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAppAuth } from '../../services/api/auth.js'
-import { fetchStatus } from '../../services/api/client.js'
+import { ApiError, fetchStatus, verifyApiKey } from '../../services/api/client.js'
 import { classifyApiError } from '../../services/api/errors.js'
 import { useSettings } from '../../services/settings.js'
 import { signOut, useSupabaseAuth } from '../../services/supabase/client.js'
@@ -14,9 +14,50 @@ export const ConnectionStatus = () => {
   const token = useAppAuth((s) => s.token)
   const origin = useAppAuth((s) => s.origin)
   const authEmail = useSupabaseAuth((s) => s.user?.email ?? null)
+  const [failure, setFailure] = useState('')
+  const [check, setCheck] = useState(0)
   const [status, setStatus] = useState<Status>('loading')
 
   useEffect(() => {
+    if (__APP_MODE__ === 'serverless') {
+      let disposed = false
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 12000)
+      setStatus('loading')
+      setFailure('')
+      verifyApiKey('', controller.signal)
+        .then(() => {
+          if (!disposed) {
+            setStatus('ready')
+          }
+        })
+        .catch((error: unknown) => {
+          if (!disposed) {
+            setStatus('offline')
+            if (controller.signal.aborted) {
+              setFailure(
+                zh
+                  ? '检查超时，请退出后重新登录再试（T12）'
+                  : 'Check timed out. Sign in again (T12)'
+              )
+            } else if (error instanceof ApiError && error.status) {
+              setFailure(`HTTP ${error.status} · ${error.message.slice(0, 160)}`)
+            } else {
+              setFailure(
+                zh
+                  ? '请求没有获得响应，请用系统浏览器重试（NET）'
+                  : 'No response. Try your system browser (NET)'
+              )
+            }
+          }
+        })
+        .finally(() => clearTimeout(timer))
+      return () => {
+        disposed = true
+        clearTimeout(timer)
+        controller.abort()
+      }
+    }
     if (__APP_MODE__ !== 'server') {
       return
     }
@@ -39,20 +80,40 @@ export const ConnectionStatus = () => {
         setStatus(classifyApiError(error) === 'unauthorized' ? 'unauthorized' : 'offline')
       })
     return () => controller.abort()
-  }, [token, origin])
+  }, [token, origin, authEmail, check, zh])
 
-  // serverless：登录态由 Supabase Auth 维护，无需服务器连接检查。
+  // 登录与聊天服务连通性分开显示；失败时可主动重试。
   if (__APP_MODE__ === 'serverless') {
     return (
       <div className="connection-status" role="status">
         <span aria-hidden="true">●</span>
         {zh ? '已登录' : 'Signed in'}
-        {authEmail ? ` · ${authEmail}` : ''}
+        {' · '}
         <button
           type="button"
           className="connection-status-link"
-          onClick={() => void signOut()}
+          onClick={() => setCheck((n) => n + 1)}
+          disabled={status === 'loading'}
         >
+          {status === 'ready'
+            ? zh
+              ? '聊天服务已连接'
+              : 'Chat service connected'
+            : status === 'loading'
+              ? zh
+                ? '检查聊天连接…'
+                : 'Checking chat connection…'
+              : zh
+                ? '聊天连接失败 · 点击重试'
+                : 'Chat unavailable · Retry'}
+        </button>
+        {failure ? (
+          <span role="alert" style={{ display: 'block', overflowWrap: 'anywhere' }}>
+            {failure}
+          </span>
+        ) : null}
+        {authEmail ? ` · ${authEmail}` : ''}
+        <button type="button" className="connection-status-link" onClick={() => void signOut()}>
           {zh ? '退出登录' : 'Sign out'}
         </button>
       </div>

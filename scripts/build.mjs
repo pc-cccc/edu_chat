@@ -1,4 +1,5 @@
 import { serverlessConfig } from './serverless-config.mjs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -38,4 +39,23 @@ const result = spawnSync(
     },
   }
 )
-process.exit(result.status ?? 1)
+if (result.status !== 0) process.exit(result.status ?? 1)
+if (mode === 'serverless' && !android) {
+  const relay = await readFile(new URL('../pages/relay.mjs', import.meta.url), 'utf8')
+  const config = {
+    workerOrigin: process.env.WORKER_ORIGIN,
+    supabaseOrigin: process.env.SUPABASE_URL,
+  }
+  await writeFile(
+    new URL('../dist/_worker.js', import.meta.url),
+    relay + '\nexport default createPagesRelay(' + JSON.stringify(config) + ')\n'
+  )
+  await writeFile(
+    new URL('../dist/_routes.json', import.meta.url),
+    JSON.stringify({
+      version: 1,
+      include: ['/api/*', '/supabase/*'],
+      exclude: [],
+    })
+  )
+}

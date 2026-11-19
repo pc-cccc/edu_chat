@@ -1,3 +1,4 @@
+import { supabaseFetch } from '../supabase/transport.js'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabase, useSupabaseAuth } from '../supabase/client.js'
 import { accountAccessToken, queueCloudMutation } from './cloudAccess.js'
@@ -20,6 +21,7 @@ const cloudClient = (expectedUserId = useSupabaseAuth.getState().user?.id) => {
     throw new Error('Cloud account changed')
   }
   const client = createClient(__SUPABASE_URL__, __SUPABASE_ANON_KEY__, {
+    global: { fetch: supabaseFetch },
     accessToken: () =>
       accountAccessToken(expectedUserId, async () => {
         const { data, error } = await getSupabase().auth.getSession()
