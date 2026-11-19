@@ -2,6 +2,8 @@
 
 > 基于 [DeepSeek chat-demo](https://github.com/deepseek-ai/chat-demo) 的个人聊天项目（**非官方产品**）。用 Cloudflare Pages + Workers + Supabase 搭成纯 Serverless：**DeepSeek 密钥只放在 Worker，前端、APK 与数据库都拿不到。**
 
+> ⚠️ **状态：开发中** —— 核心代码已完成并通过 45 项测试；云端部署与真机验收仍在进行，进度见 [验证记录](docs/VERIFICATION.md)。
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![English](https://img.shields.io/badge/README-English-blue)](README.en.md)
 

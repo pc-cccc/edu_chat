@@ -2,6 +2,8 @@
 
 > A personal chat project based on [DeepSeek chat-demo](https://github.com/deepseek-ai/chat-demo) (not an official product). Built entirely serverless with Cloudflare Pages + Workers + Supabase: **your DeepSeek API key lives only inside the Worker — the frontend, the APK, and the database never see it.**
 
+> ⚠️ **Status: in development** — the core code is complete and passes 45 tests; cloud deployment and real-device acceptance are still in progress. See [VERIFICATION.md](docs/VERIFICATION.md).
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![中文说明](https://img.shields.io/badge/README-中文-blue)](README.md)
 
