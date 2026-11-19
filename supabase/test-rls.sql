@@ -1,33 +1,32 @@
--- ============================================================
--- RLS / 权限自检（在 Supabase SQL Editor 执行，只读，不改数据）
--- 用途：确认 schema.sql 已正确生效；配合下面的「两用户手动测试」验证隔离。
--- ============================================================
+-- 只读结构检查；管理员看到结果不代表普通用户隔离已通过。
+-- 这是多条 SELECT，请在 SQL Editor 中运行，或分别选中一条执行。
+-- Windows 推荐 npm run db:setup：自动应用并核对结构。
+select c.relname as table_name, c.relrowsecurity as rls_enabled
+from pg_class c join pg_namespace n on n.oid=c.relnamespace
+where n.nspname='public' and c.relkind='r'
+and c.relname in ('profiles','chat_rooms','room_members','messages','files','user_preferences','presence')
+order by c.relname;
+-- 期望：7 行，rls_enabled 全部 true。
 
--- 1) 所有业务表都应开启 RLS（期望全部 enabled，且不存在 profiles 表）
-select relname as table, relrowsecurity as rls_enabled
-from pg_class
-join pg_namespace on pg_namespace.oid = pg_class.relnamespace
-where pg_namespace.nspname = 'public'
-  and relname in ('chat_rooms','room_members','messages','files','user_preferences','presence')
-order by relname;
-
--- 2) 关键策略应存在（期望每张表都有策略）
-select tablename, policyname
-from pg_policies
-where schemaname = 'public'
+select tablename, policyname, roles, cmd from pg_policies
+where schemaname='public'
+and tablename in ('profiles','chat_rooms','room_members','messages','files','user_preferences','presence')
 order by tablename, policyname;
 
--- ============================================================
--- 两用户隔离手动测试（不能用管理员账号代替）
---
--- 1. 用两个普通账号登录（A、B 分别用不同浏览器 / 无痕窗口，邮箱注册）。
--- 2. A 建一个会话、发消息；B 刷新页面：
---    - B 的会话列表应为空，看不到 A 的会话；
---    - B 在浏览器控制台执行
---        supabase.from('messages').select('*')
---      应返回空数组（RLS 拦截）。
--- 3. 未登录（anon）：用 anon key、不带 JWT 访问 /rest/v1/messages，
---    应返回空数组或 401，而不是数据。
--- 4. 直接插入测试（可选）：用 B 的 JWT 尝试往 A 的 room_id 插入消息，
---    应被 RLS 拒绝。
--- ============================================================
+select
+  has_table_privilege('authenticated','public.files','INSERT') as user_can_forge_files,
+  has_table_privilege('authenticated','public.files','DELETE') as user_can_forget_files,
+  has_table_privilege('service_role','public.files','INSERT') as worker_can_record_files;
+-- 期望：false / false / true。
+
+select tablename from pg_publication_tables
+where pubname='supabase_realtime' and schemaname='public'
+and tablename in ('messages','presence');
+-- 期望：messages / presence。
+
+-- 真实环境验收：
+-- A 登录、聊天；B 在无痕窗口登录，不能看到 A 的历史。
+-- 使用 B 的用户 JWT 调用 REST API 读 A 的会话，返回空数组；
+-- B 向 A 的 room_id 插入消息、把自己的消息移到 A 的 room_id 都应失败。
+-- 不要将 JWT 粘贴到聊天、提交到 Git；不要用 service_role 代替普通用户测试。
+-- 本地自动角色测试在 npm test 中运行，不需要真实账号。

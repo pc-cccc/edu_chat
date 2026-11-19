@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useSupabaseAuth } from '../supabase/client.js'
 import { createId } from '../../utils/id.js'
 import { ApiError, streamMessage } from '../api/client.js'
 import type { ChatModel, CreateMessageRequest } from '../api/types.js'
@@ -43,7 +44,8 @@ import {
 /** deepseek-flash 同时支持深度思考与图片输入 */
 const MODEL: ChatModel = 'deepseek-flash'
 /** 所有生成请求统一携带的助手身份说明 */
-const SYSTEM_PROMPT = '你是 Edu_chat，一个使用 DeepSeek 模型的通用 AI 助手，非 DeepSeek 官方产品。根据用户的问题提供清晰、准确的帮助，遵循用户的语言和表达偏好。不确定时如实说明。按需使用 Markdown 和 LaTeX，不声称拥有未实际调用的搜索、文件或其他能力。'
+const SYSTEM_PROMPT =
+  '你是 Edu_chat，一个使用 DeepSeek 模型的通用 AI 助手，非 DeepSeek 官方产品。根据用户的问题提供清晰、准确的帮助，遵循用户的语言和表达偏好。不确定时如实说明。按需使用 Markdown 和 LaTeX，不声称拥有未实际调用的搜索、文件或其他能力。'
 /** 保留最近打开的详情；当前会话、生成中及尚未成功保存的会话不淘汰。 */
 const SESSION_CACHE_LIMIT = 5
 /** 安全审核固定开启，所有请求都走扩展模式 */
@@ -68,6 +70,7 @@ const serverTools = (search: boolean): CreateMessageRequest['tools'] => {
 const titleRequests = new Set<AbortController>()
 
 type ChatState = {
+  userScopeId: string | null
   ready: boolean
   initError: boolean
   /** 历史导入或全部删除期间锁定交互，提交成功前仍展示原有记录。 */
@@ -84,6 +87,7 @@ type ChatState = {
 }
 
 export const useChatStore = create<ChatState>(() => ({
+  userScopeId: null,
   ready: false,
   initError: false,
   importingHistory: false,
@@ -192,11 +196,22 @@ const cloudSaveFailures = new Set<string>()
 
 /** serverless 模式下把会话同步到 Supabase；失败只弹一次提示，不阻断本地使用。 */
 const cloudPersist = (session: Session) => {
-  void cloudSaveSession(session)
+  const userId = get().userScopeId
+  const epoch = historyEpoch
+  if (!userId || useSupabaseAuth.getState().user?.id !== userId) {
+    return
+  }
+  void cloudSaveSession(session, userId)
     .then(() => {
+      if (epoch !== historyEpoch) {
+        return
+      }
       cloudSaveFailures.delete(session.id)
     })
     .catch(() => {
+      if (epoch !== historyEpoch) {
+        return
+      }
       if (!cloudSaveFailures.has(session.id)) {
         cloudSaveFailures.add(session.id)
         showToast({ key: 'cloudSaveFailed', type: 'error' })
@@ -333,6 +348,9 @@ export const initChat = (): Promise<void> => {
         try {
           summaries = await cloudListSessions()
         } catch {
+          if (epoch !== historyEpoch) {
+            return
+          }
           summaries = await db.loadSessionSummaries()
         }
       } else {
@@ -375,6 +393,9 @@ const ensureSessionLoaded = (id: string): Promise<void> => {
         try {
           stored = (await cloudLoadSession(id)) ?? undefined
         } catch {
+          if (epoch !== historyEpoch) {
+            return
+          }
           stored = await db.loadSession(id)
         }
       } else {
@@ -438,11 +459,22 @@ const waitForIdle = (sessionId?: string) =>
  * 再清空内存状态、切换到新账号的本地库。旧账号本地数据保留在原库中，不自动迁移。
  */
 export const resetChatForUser = async (userId: string | null): Promise<void> => {
+  const resetEpoch = ++historyEpoch
+  set({ ready: false })
+  for (const controller of titleRequests) {
+    controller.abort()
+  }
+  for (const id of Object.keys(useUploads.getState().tasks)) {
+    cancelUpload(id)
+  }
   for (const controller of Object.values(get().streaming)) {
     controller.abort()
   }
   await waitForIdle()
-  historyEpoch += 1
+  if (resetEpoch !== historyEpoch) {
+    return
+  }
+  cloudSaveFailures.clear()
   initTask = undefined
   sessionLoads.clear()
   sessionAccess.clear()
@@ -453,6 +485,7 @@ export const resetChatForUser = async (userId: string | null): Promise<void> => 
   clearAllDrafts()
   db.setUserScope(userId)
   set({
+    userScopeId: userId,
     ready: false,
     initError: false,
     importingHistory: false,
@@ -555,7 +588,7 @@ export const renameSession = (id: string, title: string) => {
     }))
     void db.renameSession(id, title).catch(db.reportStorageError('rename session'))
     if (__APP_MODE__ === 'serverless') {
-      void cloudRenameSession(id, title).catch(() => {
+      void cloudRenameSession(id, title, get().userScopeId ?? undefined).catch(() => {
         showToast({ key: 'cloudSaveFailed', type: 'error' })
       })
     }
@@ -585,12 +618,13 @@ const removeSessionData = async (id: string): Promise<boolean> => {
     if (epoch !== historyEpoch) {
       return false
     }
-    await db.deleteSession(id)
     if (__APP_MODE__ === 'serverless') {
-      await cloudDeleteSession(id).catch(() => {
-        showToast({ key: 'cloudSaveFailed', type: 'error' })
-      })
+      await cloudDeleteSession(id, get().userScopeId ?? undefined)
     }
+    if (epoch !== historyEpoch) {
+      return false
+    }
+    await db.deleteSession(id)
     if (epoch !== historyEpoch) {
       return true
     }

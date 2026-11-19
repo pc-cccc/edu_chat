@@ -11,16 +11,19 @@
     "demo": "node scripts/dev.mjs --demo",
     "build": "node scripts/build.mjs",
     "build:direct": "node scripts/build.mjs --direct",
-    "build:serverless": "node scripts/build.mjs --serverless",
+    "build:serverless": "node --env-file-if-exists=.env.serverless scripts/build.mjs --serverless",
     "build:android": "node scripts/build.mjs --android",
-    "build:android:serverless": "node scripts/build.mjs --android --serverless",
+    "build:android:serverless": "node --env-file-if-exists=.env.serverless scripts/build.mjs --android --serverless",
     "android:sync": "cap sync android",
     "android:open": "cap open android",
     "start": "node --env-file-if-exists=.env server/index.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "type": "tsc -p tsconfig.json",
     "lint": "oxlint src rspack.config.ts",
-    "format": "oxfmt --write ."
+    "format": "oxfmt --write .",
+    "db:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-database.ps1",
+    "db:apply": "node scripts/apply-schema.mjs",
+    "db:check": "node scripts/apply-schema.mjs --check"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -53,6 +56,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.6.2",
+    "@electric-sql/pglite": "^0.5.16",
     "@rspack/cli": "2.0.2",
     "@rspack/core": "2.0.2",
     "@rspack/dev-server": "2.0.1",

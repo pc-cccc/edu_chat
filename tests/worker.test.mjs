@@ -98,6 +98,7 @@ test('拒绝过期凭据', async () => {
 test('接受真实登录用户', async () => {
   const res = await call('GET', '/models', { authorization: `Bearer ${userToken()}` })
   assert.equal(res.status, 200)
+  await res.text()
 })
 
 test('未知路由 404 并带 CORS 头', async () => {

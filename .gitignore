@@ -24,3 +24,13 @@ android/capacitor-cordova-android-plugins/
 .capacitor/
 .idea/
 *.iml
+
+# Only the public configuration template is tracked.
+!.env.serverless.example
+workers/.dev.vars
+workers/.dev.vars.*
+workers/.wrangler/
+
+# 机器相关：本地连接串草稿与下载的数据库 CA 证书
+db-uri.txt
+supabase-root-ca.pem

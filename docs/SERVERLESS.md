@@ -1,116 +1,88 @@
-# Edu_chat 0 成本 Serverless 部署指南（V0.2.2）
+# Edu_chat V0.2.2 Serverless 部署
 
-架构：**纯前端 + 免费云服务**，不需要服务器 / Docker：
+前端：Cloudflare Pages；API：Cloudflare Worker；账号和历史：Supabase。旧 `server/`、Dockerfile 只保留用于旧版和本地演示。首次操作先看 [下一步](NEXT-STEPS.md)。
 
-- **前端页面** → Cloudflare Pages（免费 CDN）
-- **API 代理 + 密钥注入 + 鉴权 + 文件归属** → Cloudflare Workers（免费）
-- **登录 / 云端历史 / 文件归属** → Supabase（免费额度）
-- **DeepSeek 密钥** → 只放在 Worker 的 Secret 里，前端与 Supabase 都拿不到
+免费托管额度不等于免费模型调用。DeepSeek 按用量计费，免费云服务也有额度和限制；不要承诺永久零成本。先个人或少量受邀账号测试，不开放任意注册。Worker 内存限流不能作为可靠的费用上限。
 
-> 旧的 `server/` 与 `Dockerfile` 已废弃保留。Worker 用 `jose` 通过 Supabase 的 JWKS 校验真实用户 token（拒绝 anon/service_role），因此**必须用 wrangler CLI 部署**（在线编辑器无法打包 npm 依赖）。
+## 1. 本地安装与建表
 
----
+```powershell
+npm ci
+npm --prefix workers ci
+npm run db:setup
+```
 
-## 0. 准备 3 个免费账号
+Windows 建表入口隐藏输入 Supabase **Connect → Session pooler → URI（5432）** 和数据库密码，不保存到文件或命令历史。已有 `DATABASE_URL` 的自动化环境可用 `npm run db:apply`；只检查用 `npm run db:check`。如需项目 CA 证书，设置 `DATABASE_CA_CERT_PATH`；保持 TLS 证书校验开启。
 
-| 服务 | 网址 | 用途 |
-| --- | --- | --- |
-| DeepSeek | https://platform.deepseek.com | 拿 API Key（扣你 DeepSeek 余额，不是部署费） |
-| Cloudflare | https://dash.cloudflare.com/sign-up | Pages + Worker |
-| Supabase | https://supabase.com/dashboard | 登录 + 数据库 + 文件归属 |
+脚本用一个事务应用 `supabase/schema.sql` 并核对七张表、RLS、三个触发器、Realtime 和文件写权限，失败回滚。可重复执行，不清空聊天。使用迁移工具的环境按文件顺序执行 `supabase/migrations/`；不要重写已应用的旧迁移。
 
-## 1. 拿 DeepSeek API Key
+`supabase/test-rls.sql` 仅是结构检查；真正的用户隔离还须用两个普通账号验证。本地 `npm test` 也会在内存 PostgreSQL 中执行两用户读写攻击测试，无真实账户或费用。
 
-https://platform.deepseek.com → 登录 → 左侧 **API Keys** → **Create**，复制 `sk-` 开头字符串，存到备忘录。**只填到第 3 步 Worker**，不贴聊天、不进代码/Git。
-
-## 2. 建 Supabase 项目并执行 SQL
-
-1. https://supabase.com/dashboard 登录 → **New project**（名字如 `edu-chat`，设数据库密码，免费档）。
-2. 左侧 **SQL Editor** → **New query** → 把 `supabase/schema.sql` 整段粘贴 → **Run**。
-3. 再执行 `supabase/test-rls.sql`（自检脚本，确认 RLS/策略/Realtime 已生效）。
-4. 记录三样（**Project Settings → API**）：
-   - **Project URL**：`https://xxxx.supabase.co`
-   - **anon public** 密钥：`eyJ...`（公开值）
-   - **JWT Secret**（旧项目回退才需要；新项目用 JWKS，可不管）
-5. **Authentication → URL Configuration**：把 **Site URL** 和 **Redirect URLs** 都加上你的 Pages 域名（第 4 步会拿到，可先留空回头补），本地调试加 `http://localhost:8090`。
-6. 个人自用可在 **Authentication → Providers → Email** 里关闭 **Confirm email**，省去收验证邮件。
-
-## 3. 部署 Worker（密钥注入 + 鉴权）
-
-在项目根目录 PowerShell：
+## 2. 部署 Worker
 
 ```powershell
 cd workers
-npm install
-npx wrangler login          # 会打开浏览器登录 Cloudflare
+npm ci
+npx wrangler login
 ```
 
-编辑 `workers/wrangler.toml` 的 `[vars]`，把占位符换成真实值：
-- `ALLOWED_ORIGINS` = Pages 域名（第 4 步拿到后补，可先留空）
-- `SUPABASE_URL` = 第 2 步的 Project URL
-- `SUPABASE_ANON_KEY` = 第 2 步的 anon public 密钥
+修改 `wrangler.toml` 的公开变量：
 
-设置密钥（只进 Cloudflare，不进文件/Git）：
+| 变量 | 内容 |
+| --- | --- |
+| SUPABASE_URL | 项目 URL，例如 `https://ctthcqwnzmyijuemtwzi.supabase.co` |
+| SUPABASE_ANON_KEY | Supabase publishable key 或 legacy anon public key |
+| ALLOWED_ORIGINS | Pages 域名；多个用英文逗号分隔，不能写路径 |
 
-```powershell
-npx wrangler secret put DEEPSEEK_API_KEY   # 粘贴你的 sk-...
-```
-
-部署：
+以下密钥只在自己终端提示时输入，存到 Cloudflare Secret：
 
 ```powershell
+npx wrangler secret put DEEPSEEK_API_KEY
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 npx wrangler deploy
 ```
 
-记下 Worker 域名：`https://edu-chat-worker.<你的账号>.workers.dev`。
+第二个是 Supabase **legacy service_role key**，只用于 Worker 登记 / 删除文件归属。不要混用 publishable key；不要把管理密钥放进 Pages 构建变量、APK、`.env.serverless` 或 Git。未配这个 Secret 时聊天仍可用，上传 / 删除附件返回明确的 503。
 
-> `SUPABASE_JWT_SECRET` 只在老项目用 HS256 签名时才需要；新项目用户 token 是 ES256，通过 JWKS 校验，无需此 Secret。
+JWKS 验证 ES256/RS256 用户 token，要求 iss/aud/exp/sub/role。老 HS256 项目可另设 `SUPABASE_JWT_SECRET`，新项目不需要。anon/service_role 不能作为 App 用户登录 token。
 
-## 4. 部署 Pages（前端）
+记下部署得到的 Worker HTTPS 根域名，不带 `/api`。Android 本地来源 `https://localhost` 已在 CORS 白名单。
 
-1. Cloudflare **Workers & Pages → Create → Pages → Connect to Git**（推荐先把仓库推到 GitHub），或 **Direct Upload**。
-2. 构建配置：
-   - **Build command**：`npm ci && npm run build:serverless`
-   - **Output directory**：`dist`
-   - Node 版本选 **22**（项目根有 `.nvmrc` 自动指定）
-3. **Environment variables**（构建期变量，都是公开值）：
-   | 变量 | 值 |
-   | --- | --- |
-   | `WORKER_ORIGIN` | 第 3 步 Worker 域名 |
-   | `SUPABASE_URL` | 第 2 步 Project URL |
-   | `SUPABASE_ANON_KEY` | 第 2 步 anon public 密钥 |
-4. 部署成功后拿到 `https://<项目>.pages.dev`，回到第 2、3 步补上 Site URL / Redirect URLs / ALLOWED_ORIGINS。
+## 3. 部署 Pages
 
-## 5. 验证（务必真实走通，别只看"构建成功"）
+连接现有 GitHub 仓库即可，无需新仓库。先把本轮修复提交并推送后再触发部署。
 
-1. 打开 Pages 域名 → 出现 **Edu_chat 登录页** → 注册/登录一个邮箱账号。
-2. 发消息 → **逐字流式输出** → 点「停止生成」能立即停下。
-3. 退出登录 → 聊天列表清空；重新登录 → **云端历史**回到列表。
-4. 换一个浏览器 / 无痕窗口用**另一个邮箱**登录 → 看不到第一个账号的任何会话。
-5. 让登录 token 过期（或手动删掉本地会话）→ 再发消息应提示重新登录，而不是报错卡死。
+- 构建命令：`npm ci && npm run build:serverless`
+- 输出目录：`dist`
+- Node：22.12 或更高（项目有 `.nvmrc`）
+- 构建变量：`WORKER_ORIGIN`、`SUPABASE_URL`、`SUPABASE_ANON_KEY`，全部是公开配置。
 
-## 6. 费用与免费额度（0 成本的边界）
+拿到 Pages 域名后，补进 Worker `ALLOWED_ORIGINS` 并重新部署；在 Supabase Authentication 的 URL Configuration 配置 Site URL / Redirect URLs。
 
-| 服务 | 免费额度 | 什么时候花钱 |
-| --- | --- | --- |
-| Cloudflare Pages | 静态请求免费（合理使用） | 基本不花钱 |
-| Cloudflare Workers | 每天 10 万次请求 | 超过后按量 |
-| Supabase | 2 个项目、500MB 库、5 万月活 | 超量升级 |
-| DeepSeek | 无免费额度 | **按聊天量扣你自己的余额** |
+个人测试时通过 Supabase 控制台邀请或创建自己的用户，然后关闭公开注册。保留邮箱确认流程；按控制台提示设置验证邮件与重定向。
 
-**部署本身 0 元；只有调用 DeepSeek 时按量扣费。**
+## 4. 本地构建与 Android
 
-## 7. 已完成 / 待办
+```powershell
+Copy-Item .env.serverless.example .env.serverless
+# 用编辑器填写三个公开值，然后：
+npm run build:serverless
+# 手机目标：
+npm run build:android:serverless
+npm run android:sync
+```
 
-已完成（V0.2.2）：
-- Worker：JWKS 校验真实用户（拒 anon/service_role）+ 全响应 CORS + 流式超时/取消 + 文件归属。
-- 数据库：会话/消息/文件归属表 + 无递归 RLS + 房主自动入会 + 幂等迁移。
-- 前端：邮箱登录、账号隔离（本地缓存按用户分区、切换即清理）、个人云端历史（稳定 ID、幂等 upsert、分页、分支/思考/状态全保留）。
+两个构建都会覆盖 `dist`；发布网页前重新构建网页版。公开变量会进入静态文件，所以构建脚本拒绝 service_role、secret key 和用户 token。
 
-仍待办：
-- 多人共享聊天室 UI、学习组件勾选 UI（数据表已就绪，本轮未做 UI）。
-- 真机 APK 构建与安装（见 ANDROID 指南；需 Android 工具链与签名）。
+Android 编译及原签名位置见 [ANDROID.md](ANDROID.md)。旧 Node 版 APK 不能通过改服务器地址切换成 Serverless 版。
 
-未验证（需账号/真机）：
-- 未实际创建 Cloudflare/Supabase 项目、未用真实 DeepSeek 密钥联调。
-- 未做真机、移动网络、电脑关机后的独立验证。
+## 5. 上线前必须实际测试
+
+1. Pages 登录 → 发消息 → 流式显示 → 停止。
+2. 退出后重新登录、换浏览器同账号，历史仍能加载。
+3. 第二个普通账号看不到第一个账号的数据；附件不能跨账号引用或删除。
+4. 云端保存失败时不应误认为已跨设备同步；离线恢复、同步冲突和大历史仍需专项验收。
+5. 深度思考、搜索、文件解析、语音依赖真实 DeepSeek 账户能力，需要逐项测试。
+6. 安装新 APK，用移动网络聊天；关闭电脑后重复测试。
+
+本地通过测试 / 构建不代表以上真实部署步骤已通过。记录见 [VERIFICATION.md](VERIFICATION.md)。

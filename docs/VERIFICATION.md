@@ -1,3 +1,34 @@
+# 当前验证记录：2026-11-19，V0.2.2 修复
+
+修改位置：桌面 `edu-chat-v0.2.1`，基线 Git HEAD `7fbe16b`。保留用户原有未提交的带函数版 schema，未提交 / 推送本轮修改。以下旧日期记录仅供追溯，当前步骤以 `NEXT-STEPS.md` 为准。
+
+## 本轮已验证
+
+- Node 26.13.0；`npm run type`、`npm run lint` 通过，0 错误 / 0 警告。
+- `npm test`：45/45 通过。旧网关测试保留；新增建表、账号绑定、云端操作排序、构建配置、Worker 验签 / 文件权限 / 取消等回归用例。
+- PGlite（内存 PostgreSQL）实际执行 schema：首次 / 重复应用、旧迁移升级保留会话、失败整笔回滚、触发器 / Realtime publication。模拟 Supabase auth.uid 和角色，在 authenticated / anon / service_role 身份下执行读写，覆盖跨用户读取、插入、移动消息、伪造文件归属、转移房主、越权 presence。
+- Worker 在 Node 测试环境验证真实 ES256 / RS256 签名及本地 HTTP JWKS 缓存；拒绝缺 exp 的 token；模拟 DeepSeek / REST 验证后端写文件归属和流式取消。没有调用真实 DeepSeek。
+- 网页 / Android 前端构建成功：`build:serverless`、`build:android:serverless`。使用 `.invalid` 测试域名及明确的测试公开 key，**dist 是验证产物，不可直接发布**。请填真实公开配置后重新构建。
+- 找到 JDK21 / SDK / Gradle；读取原 debug.keystore 的证书，SHA-256 为 `B817B132F20B7190B52F86CEBACEB53E859636B129950935108E7627B794FAC3`，与原 V0.2.1 调试签名一致。本轮未重新生成签名。
+- npm 锁文件与 pnpm 锁文件已同步；新增 Worker 本地秘密文件的忽略规则。
+
+## 本轮未验证 / 待完成
+
+- 本机没有 DATABASE_URL / 实际云端公开配置。本轮没有连接真实 Supabase、应用远程建表、部署 Cloudflare 或创建任何费用资源。
+- 没有制作新的真实联网 APK、没有真机验收。此前 V0.2.1 APK 仍是 Node 网关版。
+- 本地角色测试不能替代 Supabase 真实 API / RLS 两账号联调；Node Worker 测试不能替代 Cloudflare 实际运行。
+- 账号切换的整个 UI 已增加隔离等待状态，但未做浏览器端自动化、真机或跨设备端到端验收。
+- 当前同步仍非完整离线 outbox：离线失败重试、多个设备同时编辑、长列表超过服务端分页上限、全量导入 / 清空历史的云端语义需后续专项完善。本轮主要修复账号凭据绑定及同一会话保存 / 删除的先后顺序。
+- npm audit 报告 12 项依赖告警（2 low / 8 high / 2 critical），涉及 Mermaid 依赖、KaTeX、开发格式化工具及其依赖；本轮未执行可能带来兼容变化的批量升级。对外分发前需升级并回归 Markdown / 图表渲染。
+
+## 实现依据
+
+- [Supabase 数据库连接](https://supabase.com/docs/guides/database/connecting-to-postgres)：使用 Session pooler 连接进行本机管理操作。
+- [node-postgres TLS](https://node-postgres.com/features/ssl)：连接串中的 SSL 参数可能覆盖显式 ssl 配置；建表脚本统一移除这些参数并保持证书验证，可指定 CA。
+- [PGlite](https://pglite.dev/docs/)：在本地运行 PostgreSQL 引擎测试，不依赖真实云端凭据。
+
+---
+
 # V0.2.1 验证记录
 
 日期：2026-11-17，Windows，本次在 CodeBuddy V0.2 副本上开发，未改桌面原目录。

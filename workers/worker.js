@@ -12,6 +12,7 @@
  *   - DEEPSEEK_API_KEY        (secret)  DeepSeek 密钥
  *   - SUPABASE_URL            (var)     形如 https://xxx.supabase.co
  *   - SUPABASE_ANON_KEY       (var)     Supabase 的 anon public 密钥（公开值）
+ *   - SUPABASE_SERVICE_ROLE_KEY (secret) 仅 Worker 写入文件归属，绝不能放前端
  *   - SUPABASE_JWT_SECRET     (secret, 可选) 仅用于旧 HS256 项目的回退校验
  *   - ALLOWED_ORIGINS         (var)     允许跨域的前端域名，逗号分隔
  *
@@ -40,6 +41,8 @@ const CORS_HEADERS = {
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
+// Reuse jose's key cache; do not fetch JWKS on every chat request.
+const jwksByIssuer = new Map()
 
 // 尽力而为的按用户限流（内存 Map 不跨隔离区，不能当作可靠的费用/滥用控制；
 // 真正的限制依赖：Supabase 关闭公开注册 + Cloudflare 控制台的 Rate Limiting 规则）。
@@ -108,7 +111,11 @@ async function verifyUserToken(token, env) {
   if (!token) return null
   const url = baseUrl(env.SUPABASE_URL)
   const issuer = `${url}/auth/v1`
-  const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`))
+  let jwks = jwksByIssuer.get(issuer)
+  if (!jwks) {
+    jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`))
+    jwksByIssuer.set(issuer, jwks)
+  }
   const check = (payload) =>
     payload?.role === 'authenticated' && typeof payload?.sub === 'string' && payload.sub
       ? payload
@@ -119,6 +126,7 @@ async function verifyUserToken(token, env) {
       algorithms: ['ES256', 'RS256', 'PS256'],
       issuer,
       audience: 'authenticated',
+      requiredClaims: ['exp', 'sub', 'role'],
     })
     return check(payload)
   } catch {
@@ -128,6 +136,7 @@ async function verifyUserToken(token, env) {
           algorithms: ['HS256'],
           issuer,
           audience: 'authenticated',
+          requiredClaims: ['exp', 'sub', 'role'],
         })
         return check(payload)
       } catch {
@@ -163,22 +172,29 @@ function extractFileIds(bodyText) {
 }
 
 /** 调用 Supabase PostgREST（用用户自己的 token，RLS 自动限定到本人数据）。 */
-async function supabaseRest(env, token, path, options = {}) {
+async function supabaseRest(env, token, path, options = {}, privileged = false) {
   const url = `${baseUrl(env.SUPABASE_URL)}/rest/v1/${path}`
   const headers = new Headers(options.headers)
-  headers.set('apikey', env.SUPABASE_ANON_KEY)
-  headers.set('Authorization', `Bearer ${token}`)
+  const key = privileged ? env.SUPABASE_SERVICE_ROLE_KEY : env.SUPABASE_ANON_KEY
+  headers.set('apikey', key)
+  headers.set('Authorization', `Bearer ${privileged ? key : token}`)
   if (options.body !== undefined) headers.set('Content-Type', 'application/json')
-  return fetch(url, { ...options, headers })
+  return fetch(url, { signal: AbortSignal.timeout(15_000), ...options, headers, redirect: 'error' })
 }
 
-/** 记录某个 DeepSeek 文件归属于当前用户（插入 files 表，RLS 保证 user_id 正确）。 */
+/** 只有 Worker 写归属：userId 来自验证后的 JWT，fileId 来自 DeepSeek 上传响应。 */
 async function recordFileOwnership(env, token, userId, fileId) {
   try {
-    const res = await supabaseRest(env, token, 'files', {
-      method: 'POST',
-      body: JSON.stringify({ id: fileId, user_id: userId }),
-    })
+    const res = await supabaseRest(
+      env,
+      token,
+      'files',
+      {
+        method: 'POST',
+        body: JSON.stringify({ id: fileId, user_id: userId }),
+      },
+      true
+    )
     return res.ok
   } catch {
     return false
@@ -203,7 +219,13 @@ async function findForeignFiles(env, token, fileIds) {
 /** 删除 files 表里的归属记录（删除成功/失败都不影响主流程）。 */
 async function forgetFileOwnership(env, token, fileId) {
   try {
-    await supabaseRest(env, token, `files?id=eq.${encodeURIComponent(fileId)}`, { method: 'DELETE' })
+    await supabaseRest(
+      env,
+      token,
+      `files?id=eq.${encodeURIComponent(fileId)}`,
+      { method: 'DELETE' },
+      true
+    )
   } catch {
     // 忽略。
   }
@@ -211,32 +233,32 @@ async function forgetFileOwnership(env, token, fileId) {
 
 export default {
   async fetch(request, env) {
+    const origin = allowedOrigin(request, env)
+    // Preflight must work even before secrets are fully configured.
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: withCors(origin ? CORS_HEADERS : {}, origin),
+      })
+    }
     const missing = []
     if (!env.DEEPSEEK_API_KEY) missing.push('DEEPSEEK_API_KEY')
     if (!env.SUPABASE_URL) missing.push('SUPABASE_URL')
     if (!env.SUPABASE_ANON_KEY) missing.push('SUPABASE_ANON_KEY')
     if (missing.length > 0) {
-      return jsonResponse(500, `Worker 缺少配置：${missing.join('、')}。`)
+      return jsonResponse(500, `Worker 缺少配置：${missing.join('、')}。`, origin)
     }
 
     const url = new URL(request.url)
     const pathname = url.pathname
-    const origin = allowedOrigin(request, env)
-
-    // CORS 预检：Authorization 属于非简单头，浏览器会先发 OPTIONS。
-    if (request.method === 'OPTIONS') {
-      if (!origin) return new Response(null, { status: 204 })
-      return new Response(null, {
-        status: 204,
-        headers: { 'Access-Control-Allow-Origin': origin, ...CORS_HEADERS },
-      })
-    }
-
     // 健康检查。
     if (request.method === 'GET' && pathname === '/') {
       return new Response(JSON.stringify({ ok: true, service: 'edu-chat-worker' }), {
         status: 200,
-        headers: withCors({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }, origin),
+        headers: withCors(
+          { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+          origin
+        ),
       })
     }
 
@@ -254,8 +276,18 @@ export default {
       return jsonResponse(404, '接口不存在', origin)
     }
 
+    if (
+      (pathname === '/anthropic/v1/files' || request.method === 'DELETE') &&
+      !env.SUPABASE_SERVICE_ROLE_KEY
+    ) {
+      return jsonResponse(503, '附件服务尚未配置，请联系应用维护者', origin)
+    }
+
     // 3) 尽力而为的按用户限流。
     const now = Date.now()
+    for (const [id, value] of rateMap) {
+      if (now - value.start >= RATE_WINDOW_MS) rateMap.delete(id)
+    }
     const entry = rateMap.get(userId)
     if (entry && now - entry.start < RATE_WINDOW_MS) {
       entry.count += 1
@@ -315,7 +347,8 @@ export default {
     const abort = new AbortController()
     const timer = setTimeout(() => abort.abort(), UPSTREAM_TIMEOUT_MS)
     const abortFromClient = () => abort.abort()
-    request.signal.addEventListener('abort', abortFromClient)
+    request.signal.addEventListener('abort', abortFromClient, { once: true })
+    if (request.signal.aborted) abort.abort()
 
     let upstream
     try {
@@ -334,30 +367,43 @@ export default {
 
     // 8) 非 2xx：只回传脱敏后的错误信息，绝不回显密钥。
     if (!upstream.ok) {
-      clearTimeout(timer)
-      request.signal.removeEventListener('abort', abortFromClient)
       let message = `DeepSeek 返回 ${upstream.status}，请检查密钥、余额、模型与扩展能力。`
       try {
         const parsed = JSON.parse(await upstream.text())
         if (typeof parsed?.error?.message === 'string') {
-          message = parsed.error.message.replaceAll(env.DEEPSEEK_API_KEY, '[redacted]').slice(0, 2000)
+          message = parsed.error.message
+            .replaceAll(env.DEEPSEEK_API_KEY, '[redacted]')
+            .slice(0, 2000)
         }
       } catch {
         // 保留通用提示。
       }
+      clearTimeout(timer)
+      request.signal.removeEventListener('abort', abortFromClient)
       return jsonResponse(upstream.status, message, origin)
     }
 
     // 9) 文件上传成功后记录归属（拿到 file_id 后写 files 表）。
     if (request.method === 'POST' && pathname === '/anthropic/v1/files') {
-      const fileBody = await upstream.arrayBuffer()
+      let fileBody
+      try {
+        fileBody = await upstream.arrayBuffer()
+      } catch {
+        clearTimeout(timer)
+        request.signal.removeEventListener('abort', abortFromClient)
+        return jsonResponse(502, '读取上传结果失败或超时，请重试', origin)
+      }
       let fileId = null
       try {
         fileId = JSON.parse(textDecoder.decode(fileBody)).id
       } catch {
-        // 响应不是预期的 JSON，仍原样返回。
+        // 无有效文件 ID 时拒绝返回成功，避免生成没有归属的附件。
       }
-      if (fileId && !(await recordFileOwnership(env, token, userId, fileId))) {
+      if (
+        typeof fileId !== 'string' ||
+        !fileId ||
+        !(await recordFileOwnership(env, token, userId, fileId))
+      ) {
         clearTimeout(timer)
         request.signal.removeEventListener('abort', abortFromClient)
         return jsonResponse(502, '文件所有权记录失败，请重试上传', origin)
@@ -377,38 +423,46 @@ export default {
       request.signal.removeEventListener('abort', abortFromClient)
       const fileId = decodeURIComponent(pathname.split('/').pop())
       await forgetFileOwnership(env, token, fileId)
-      return new Response(null, { status: upstream.status, headers: withCors(upstream.headers, origin) })
+      return new Response(null, {
+        status: upstream.status,
+        headers: withCors(upstream.headers, origin),
+      })
     }
 
-    // 11) 成功：手动泵流，保留 text/event-stream、关闭缓冲，并在客户端断开时中止上游。
+    // 11) 按客户端消费速度读取，保留 SSE，取消时关闭上游读取器。
     const upstreamHeaders2 = new Headers(upstream.headers)
     upstreamHeaders2.set('Cache-Control', 'no-store')
     upstreamHeaders2.set('X-Accel-Buffering', 'no')
-    const stream = upstream.body
+    const reader = upstream.body?.getReader()
+    const cleanup = () => {
+      clearTimeout(timer)
+      request.signal.removeEventListener('abort', abortFromClient)
+    }
+    if (!reader) cleanup()
+    const stream = reader
       ? new ReadableStream({
-          async start(streamController) {
-            const reader = upstream.body.getReader()
+          async pull(controller) {
             try {
-              for (;;) {
-                const { done, value } = await reader.read()
-                if (done) break
-                streamController.enqueue(value)
-              }
-              streamController.close()
-            } catch (error) {
-              streamController.error(error)
-            } finally {
-              clearTimeout(timer)
-              request.signal.removeEventListener('abort', abortFromClient)
+              const { done, value } = await reader.read()
+              if (done) {
+                controller.close()
+                cleanup()
+              } else controller.enqueue(value)
+            } catch {
+              cleanup()
+              controller.error(new Error('Upstream stream interrupted'))
             }
           },
-          cancel() {
+          async cancel(reason) {
             abort.abort()
-            clearTimeout(timer)
-            request.signal.removeEventListener('abort', abortFromClient)
+            cleanup()
+            await reader.cancel(reason).catch(() => {})
           },
         })
       : null
-    return new Response(stream, { status: upstream.status, headers: withCors(upstreamHeaders2, origin) })
+    return new Response(stream, {
+      status: upstream.status,
+      headers: withCors(upstreamHeaders2, origin),
+    })
   },
 }

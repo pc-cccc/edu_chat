@@ -34,7 +34,13 @@ export const App = () => {
   const locale = useSettings((state) => state.locale)
   // 移动端侧边栏以独立抽屉管理开合状态
   const siderCollapsed = useSettings((state) => state.siderCollapsed) && !isMobile
-  const ready = useChatStore((state) => state.ready)
+  const userId = useSupabaseAuth((s) => s.user?.id ?? null)
+  const ready = useChatStore(
+    (state) => state.ready && (__APP_MODE__ !== 'serverless' || state.userScopeId === userId)
+  )
+  const scopeMatches = useChatStore(
+    (state) => __APP_MODE__ !== 'serverless' || state.userScopeId === userId
+  )
   const initError = useChatStore((state) => state.initError)
   const saveError = useChatStore((state) => Object.values(state.sessionSaveErrors).some(Boolean))
   const importingHistory = useChatStore((state) => state.importingHistory)
@@ -51,7 +57,6 @@ export const App = () => {
     state.activeId === null ? false : Object.hasOwn(state.streaming, state.activeId)
   )
   const activeId = useChatStore((state) => state.activeId)
-  const userId = useSupabaseAuth((s) => s.user?.id ?? null)
 
   usePreventPageScroll(isMobile)
 
@@ -82,13 +87,26 @@ export const App = () => {
     if (__APP_MODE__ !== 'serverless') {
       return
     }
+    let cancelled = false
     void (async () => {
       await resetChatForUser(userId)
-      if (userId) {
+      if (!cancelled && userId) {
         void initChat()
       }
     })()
+    return () => {
+      cancelled = true
+    }
   }, [userId])
+
+  // Hide the whole old-account UI (including sidebar/search), not only the message view.
+  if (!scopeMatches) {
+    return (
+      <AuthGate>
+        <div role="status">{t('sessionLoading')}</div>
+      </AuthGate>
+    )
+  }
 
   return (
     <AuthGate>
