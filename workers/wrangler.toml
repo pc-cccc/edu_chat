@@ -7,11 +7,11 @@ compatibility_date = "2024-11-01"
 # 公开变量（可见，不含密钥）。部署前把占位符换成真实值：
 [vars]
 # 允许跨域调用的前端域名，多个用英文逗号分隔
-ALLOWED_ORIGINS = "https://your-project.pages.dev"
+ALLOWED_ORIGINS = "https://edu-chat-9yt.pages.dev"
 # Supabase 项目 URL（同时用于 JWT 的 JWKS/issuer 校验）
-SUPABASE_URL = "https://ctthcqwnzmyijuemtwzi.supabase.co"
+SUPABASE_URL = "https://ctthcqwnzmiyjuemtwzi.supabase.co"
 # Supabase 的 anon public 密钥（公开值，用于以用户身份调用 PostgREST 做文件归属校验）
-SUPABASE_ANON_KEY = "your-anon-key"
+SUPABASE_ANON_KEY = "sb_publishable_ZRwi83L1VhY8_G7Ggk_cZw_5X-JI6-V"
 
 # 密钥变量（务必用命令设置，不要写进本文件或提交 Git）：
 #   npx wrangler secret put DEEPSEEK_API_KEY      # 你的 DeepSeek 密钥 sk-...

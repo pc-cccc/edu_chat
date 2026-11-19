@@ -1,3 +1,15 @@
+## 当前网页版连接方式（2026-11-19 更新）
+
+网页已改为同源转发：浏览器只通过 Pages 域名请求聊天、登录和历史，由 Pages Functions 联系现有 Worker / Supabase。原 `WORKER_ORIGIN` / `SUPABASE_URL` 仍填真实后端根域名，构建时写入 Pages 服务端路由，**不要改成 `/api` 或 `/supabase`**。密钥仍只在原 Worker Secret。
+
+`npm.cmd run build:serverless` 会生成 `dist/_worker.js`、`_routes.json` 和静态资源。需将整个 dist 用 `npx.cmd wrangler pages deploy dist --project-name=edu-chat --branch=main --commit-dirty=true` 部署；仅上传静态文件不能工作。`/api/*`、`/supabase/*` 消耗 Pages Functions / Workers 额度，其余静态路由不调用函数。
+
+Windows PowerShell 执行策略阻止 npm.ps1 时使用 `npm.cmd` / `npx.cmd`，切换目录用 `Set-Location` 或 `cd`（不要用 cmd.exe 的 `cd /d`）。需要使用本机现有代理部署时，在当前终端设置 HTTP_PROXY / HTTPS_PROXY、NODE_USE_ENV_PROXY=1、WRANGLER_SEND_METRICS=false，不写入客户端构建配置。
+
+参考 [Cloudflare Pages advanced mode](https://developers.cloudflare.com/pages/functions/advanced-mode/) 和 [路由规则](https://developers.cloudflare.com/pages/functions/routing/)。仅在网页能访问 Pages 域名的网络下解决单独访问后端域名的问题，不承诺任意网络免代理可用。原生 Android 和 Realtime WebSocket 尚未改成这个入口。
+
+---
+
 # Edu_chat V0.2.2 Serverless 部署
 
 前端：Cloudflare Pages；API：Cloudflare Worker；账号和历史：Supabase。旧 `server/`、Dockerfile 只保留用于旧版和本地演示。首次操作先看 [下一步](NEXT-STEPS.md)。
@@ -30,7 +42,7 @@ npx wrangler login
 
 | 变量 | 内容 |
 | --- | --- |
-| SUPABASE_URL | 项目 URL，例如 `https://ctthcqwnzmyijuemtwzi.supabase.co` |
+| SUPABASE_URL | 项目 URL，例如 `https://ctthcqwnzmiyjuemtwzi.supabase.co` |
 | SUPABASE_ANON_KEY | Supabase publishable key 或 legacy anon public key |
 | ALLOWED_ORIGINS | Pages 域名；多个用英文逗号分隔，不能写路径 |
 

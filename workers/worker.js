@@ -179,7 +179,7 @@ async function supabaseRest(env, token, path, options = {}, privileged = false) 
   headers.set('apikey', key)
   headers.set('Authorization', `Bearer ${privileged ? key : token}`)
   if (options.body !== undefined) headers.set('Content-Type', 'application/json')
-  return fetch(url, { signal: AbortSignal.timeout(15_000), ...options, headers, redirect: 'error' })
+  return fetch(url, { signal: AbortSignal.timeout(15_000), ...options, headers, redirect: 'manual' })
 }
 
 /** 只有 Worker 写归属：userId 来自验证后的 JWT，fileId 来自 DeepSeek 上传响应。 */
@@ -357,9 +357,23 @@ export default {
         headers: upstreamHeaders,
         body,
         signal: abort.signal,
-        redirect: 'error',
+        redirect: 'manual',
       })
-    } catch {
+    } catch (error) {
+      clearTimeout(timer)
+      request.signal.removeEventListener('abort', abortFromClient)
+      console.error('deepseek_fetch_failed', {
+        name: error?.name,
+        message: String(error?.message ?? error).slice(0, 200),
+        upstreamAborted: abort.signal.aborted,
+        clientAborted: request.signal.aborted,
+        method: request.method,
+        pathname,
+      })
+      return jsonResponse(502, '连接 DeepSeek 失败或超时，请稍后再试', origin)
+    }
+
+    if (upstream.type === 'opaqueredirect') {
       clearTimeout(timer)
       request.signal.removeEventListener('abort', abortFromClient)
       return jsonResponse(502, '连接 DeepSeek 失败或超时，请稍后再试', origin)
