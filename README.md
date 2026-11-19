@@ -5,8 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![English](https://img.shields.io/badge/README-English-blue)](README.en.md)
 
-<!-- 在这里放一张聊天界面的截图或动图，别人一眼就能看懂它是干什么的 -->
-<!-- <p align="center"><img src="docs/screenshot.png" width="640" alt="聊天界面" /></p> -->
+<p align="center"><img src="docs/screenshot.png" width="360" alt="聊天界面" /></p>
 
 ## ✨ 特点
 

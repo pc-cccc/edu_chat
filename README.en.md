@@ -5,8 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![中文说明](https://img.shields.io/badge/README-中文-blue)](README.md)
 
-<!-- Put a screenshot or GIF of the chat UI here — it's the fastest way to show what this is. -->
-<!-- <p align="center"><img src="docs/screenshot.png" width="640" alt="Chat UI" /></p> -->
+<p align="center"><img src="docs/screenshot.png" width="360" alt="Chat UI" /></p>
 
 ## ✨ Features
 
