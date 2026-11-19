@@ -1,19 +1,30 @@
-# Edu_chat V0.2.2
+# Edu_chat — 0 成本上云、密钥不泄露的 DeepSeek 聊天客户端
 
-基于 [DeepSeek 官方 chat-demo](https://github.com/deepseek-ai/chat-demo) 的个人通用聊天项目，**非 DeepSeek 官方产品**。保留钥匙图标；不包含教育首页入口或个人教育助手提示。
+> 基于 [DeepSeek chat-demo](https://github.com/deepseek-ai/chat-demo) 的个人聊天项目（**非官方产品**）。用 Cloudflare Pages + Workers + Supabase 搭成纯 Serverless：**DeepSeek 密钥只放在 Worker，前端、APK 与数据库都拿不到。**
 
-React 18 + TypeScript + Rspack + Capacitor Android。保留聊天、流式回答、深度思考、搜索、文件、Markdown / 数学公式界面；使用上游 demo 的 Anthropic 兼容 Messages / Files 协议。扩展能力需要用真实账户逐项验证。
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![English](https://img.shields.io/badge/README-English-blue)](README.en.md)
 
-## 当前推荐架构
+<!-- 在这里放一张聊天界面的截图或动图，别人一眼就能看懂它是干什么的 -->
+<!-- <p align="center"><img src="docs/screenshot.png" width="640" alt="聊天界面" /></p> -->
 
-- Cloudflare Pages：网页。
-- Cloudflare Worker：验证用户身份、注入 DeepSeek 密钥、转发请求。
-- Supabase：邮箱登录、个人云端历史、文件归属。
-- Android：同一前端构建为可安装 App，连接云端。
+## ✨ 特点
 
-托管可使用免费额度，DeepSeek 调用仍按量计费。暂不做教育组件或多人聊天室 UI。旧 `server/`、Dockerfile 保留，不用于当前 Serverless 部署。
+- 🔐 **密钥不泄露**：DeepSeek Key 只存 Worker Secret；登录态用 Supabase JWT（JWKS）校验，拒绝匿名 / 服务密钥，附件归属逐条校验。
+- 💸 **0 成本部署**：Pages + Workers + Supabase 全走免费额度，只有调用 DeepSeek 才按量计费。
+- 👥 **多账号隔离**：邮箱登录，每人各自云端历史，换设备记录还在、互不可见。
+- 💬 **完整聊天体验**：流式输出、停止生成、深度思考、联网搜索、文件上传、Markdown / LaTeX 公式。
+- 📱 **安卓 App**：同一前端打包为可安装 App，电脑关机后手机也能聊。
 
-**第一次部署：先读 [现在的下一步](docs/NEXT-STEPS.md)**，再按 [Serverless 部署指南](docs/SERVERLESS.md) 操作。新旧 APK 的区别与打包见 [Android 指南](docs/ANDROID.md)。
+## 🧩 架构
+
+| 层 | 用谁 | 干什么 |
+| --- | --- | --- |
+| 前端 | Cloudflare Pages | 网页 / 安卓 App 的同一套界面 |
+| 网关 | Cloudflare Worker | 校验登录、注入 DeepSeek Key、流式转发 |
+| 数据 | Supabase | 邮箱登录、个人云端历史、文件归属 |
+
+**第一次部署**：先读 [现在从哪里继续](docs/NEXT-STEPS.md)，再按 [Serverless 部署指南](docs/SERVERLESS.md) 三步上云。新旧 APK 区别见 [Android 指南](docs/ANDROID.md)。英文说明见 [README.en.md](README.en.md)。
 
 ## 安装、检查、构建
 
