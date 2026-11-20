@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // app 模块内的自定义插件不会自动注册，必须显式 registerPlugin
         registerPlugin(AppUpdaterPlugin.class);
+        registerPlugin(FileSaverPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

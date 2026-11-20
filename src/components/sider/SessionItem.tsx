@@ -34,7 +34,11 @@ export const SessionItem = memo(function SessionItem({
         className={styles.renameInput}
         defaultValue={displayTitle}
         autoFocus
-        onFocus={(event) => event.target.select()}
+        onFocus={(event) => {
+          event.target.select()
+          // 移动端键盘弹出时保持输入框在可视区域内，避免被抽屉顶部遮挡
+          event.currentTarget.scrollIntoView({ block: 'nearest' })
+        }}
         onBlur={(event) => finish(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
