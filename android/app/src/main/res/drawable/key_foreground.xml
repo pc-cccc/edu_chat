@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <!-- 自适应图标前景：斜 45° 蓝色实心钥匙（干净剪影），白底由背景色提供 -->
-    <group android:scaleX="2.2" android:scaleY="2.2" android:pivotX="54" android:pivotY="54"
-        android:rotation="-45">
-        <path android:fillColor="#2F6BFF" android:fillType="evenOdd"
-            android:pathData="M6.5,7.75a4.25,4.25 0 1 1 -0.01,0z M6.5,10.3a1.7,1.7 0 1 0 0.01,0z M10.75,10.4h5.15A1.6,1.6 0 0 1 17.5,12a1.6,1.6 0 0 1 -1.6,1.6h-5.15z M15.5,13.6h2.25v2.9h-2.25z M12.75,13.6h2v2.15h-2z" />
+    <group android:translateX="27" android:translateY="27" android:scaleX="2.25" android:scaleY="2.25">
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="1.8"
+            android:pathData="M12.5,8A4.5,4.5 0,1 0,3.5 8A4.5,4.5 0,1 0,12.5 8" />
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M11.2,11.2L20.5,20.5M16.5,16.5L19,14M14,14L16.5,11.5" />
     </group>
 </vector>
