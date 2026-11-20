@@ -216,5 +216,6 @@ export const en = {
   updateLater: 'Later',
   updateDialogDescription: '{name} ({version}) is out. We recommend updating for new features and fixes.',
   updateDownloading: 'Downloading the new version…',
+  updateDownloadFailed: 'Failed to start the download. Please try again later.',
   updateNeedPermission: 'Please allow this app to install apps in system settings, then retry.',
 } satisfies Record<keyof typeof zh, string>

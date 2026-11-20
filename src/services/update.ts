@@ -28,7 +28,7 @@ export type UpdateInfo = {
   name: string
 }
 
-export type DownloadResult = 'downloading' | 'needPermission' | 'fallbackToBrowser'
+export type DownloadResult = 'downloading' | 'needPermission' | 'fallbackToBrowser' | 'failed'
 
 const parseVersion = (value: string): [number, number, number] | null => {
   const match = value.trim().replace(/^v/i, '').match(/^(\d+)\.(\d+)\.(\d+)/)

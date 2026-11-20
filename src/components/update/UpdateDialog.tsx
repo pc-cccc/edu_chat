@@ -18,6 +18,8 @@ export const UpdateDialog = () => {
     const result = await startUpdate()
     if (result === 'needPermission') {
       showToast({ key: 'updateNeedPermission', type: 'error' })
+    } else if (result === 'failed') {
+      showToast({ key: 'updateDownloadFailed', type: 'error' })
     } else if (result === 'fallbackToBrowser') {
       showToast({ key: 'updateDownloading' })
     }

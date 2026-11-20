@@ -357,6 +357,10 @@ const UpdateSetting = () => {
     const result = await startUpdate()
     if (result === 'needPermission') {
       showToast({ key: 'updateNeedPermission', type: 'error' })
+    } else if (result === 'failed') {
+      showToast({ key: 'updateDownloadFailed', type: 'error' })
+    } else if (result === 'downloading') {
+      showToast({ key: 'updateDownloading' })
     }
   }
 

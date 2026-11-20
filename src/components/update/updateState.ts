@@ -60,6 +60,8 @@ export const startUpdate = async (): Promise<DownloadResult> => {
   useUpdate.setState({ downloading: true })
   try {
     return await downloadUpdate(info.url)
+  } catch {
+    return 'failed'
   } finally {
     useUpdate.setState({ downloading: false })
   }

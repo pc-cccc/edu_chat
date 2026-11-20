@@ -206,5 +206,6 @@ export const zh = {
   updateLater: '稍后再说',
   updateDialogDescription: '{name}（{version}）已发布，推荐更新以获得新功能和修复。',
   updateDownloading: '正在下载新版本，请留意系统通知',
+  updateDownloadFailed: '无法开始下载，请稍后再试',
   updateNeedPermission: '请先在系统设置中允许本应用安装应用，再重试更新',
 } as const
