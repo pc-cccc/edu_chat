@@ -14,6 +14,7 @@ import {
   clearHistory,
   exportHistory,
   importHistory,
+  type ImportMode,
 } from '../../services/chat/backup.js'
 import { useIsMobile } from '../../app/viewport.js'
 import { useChatStore } from '../../services/chat/store.js'
@@ -130,7 +131,7 @@ const SettingsContent = () => {
           )}
         </div>
       </Modal>
-      {historyImport.file ? <ImportConfirm historyImport={historyImport} /> : null}
+      {historyImport.file ? <ImportModeDialog historyImport={historyImport} /> : null}
       {historyDelete.opened ? <DeleteAllConfirm historyDelete={historyDelete} /> : null}
     </>
   )
@@ -318,31 +319,93 @@ const TtsVoiceSetting = () => {
   )
 }
 
-/** 覆盖导入的二次确认，叠在设置弹窗上 */
-const ImportConfirm = ({
+/** 选择导入方式：合并（默认）或替换；替换需要二次确认后才执行。 */
+const ImportModeDialog = ({
   historyImport,
 }: {
   historyImport: ReturnType<typeof useHistoryImport>
 }) => {
   const t = useTranslate()
+  const [mode, setMode] = useState<ImportMode>('merge')
+  const [replaceConfirming, setReplaceConfirming] = useState(false)
+
+  const options: { value: ImportMode; label: TranslationKey; description: TranslationKey }[] = [
+    {
+      value: 'merge',
+      label: 'historyImportMergeLabel',
+      description: 'historyImportMergeDescription',
+    },
+    {
+      value: 'replace',
+      label: 'historyImportReplaceLabel',
+      description: 'historyImportReplaceDescription',
+    },
+  ]
+
+  const confirm = () => {
+    if (mode === 'replace') {
+      setReplaceConfirming(true)
+      return
+    }
+    void historyImport.confirm('merge')
+  }
+
   return (
-    <Modal
-      title={t('historyImportConfirmTitle')}
-      className={styles.importConfirm}
-      onClose={historyImport.cancel}
-      footer={
-        <>
-          <Button variant="outlined" size="m" autoFocus onClick={historyImport.cancel}>
-            {t('cancel')}
-          </Button>
-          <Button variant="dangerOutlined" size="m" onClick={() => void historyImport.confirm()}>
-            {t('historyImportConfirm')}
-          </Button>
-        </>
-      }
-    >
-      <div className={styles.importConfirmText}>{t('historyImportConfirmDescription')}</div>
-    </Modal>
+    <>
+      <Modal
+        title={t('historyImportModeTitle')}
+        className={styles.importMode}
+        onClose={historyImport.cancel}
+        footer={
+          <>
+            <Button variant="outlined" size="m" autoFocus onClick={historyImport.cancel}>
+              {t('cancel')}
+            </Button>
+            <Button size="m" onClick={confirm}>
+              {t('historyImportConfirm')}
+            </Button>
+          </>
+        }
+      >
+        <div role="radiogroup" aria-label={t('historyImportModeTitle')} className={styles.importModes}>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={mode === option.value}
+              className={clsx(
+                styles.importModeOption,
+                mode === option.value && styles.importModeOptionSelected
+              )}
+              onClick={() => setMode(option.value)}
+            >
+              <span className={styles.importModeOptionLabel}>{t(option.label)}</span>
+              <span className={styles.importModeOptionDescription}>{t(option.description)}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
+      {replaceConfirming ? (
+        <Modal
+          title={t('historyImportConfirmTitle')}
+          className={styles.importConfirm}
+          onClose={() => setReplaceConfirming(false)}
+          footer={
+            <>
+              <Button variant="outlined" size="m" autoFocus onClick={() => setReplaceConfirming(false)}>
+                {t('cancel')}
+              </Button>
+              <Button variant="danger" size="m" onClick={() => void historyImport.confirm('replace')}>
+                {t('historyImportReplaceConfirm')}
+              </Button>
+            </>
+          }
+        >
+          <div className={styles.importConfirmText}>{t('historyImportConfirmDescription')}</div>
+        </Modal>
+      ) : null}
+    </>
   )
 }
 
@@ -494,14 +557,14 @@ const SettingCell = ({
   )
 }
 
-/** 选文件后先提示覆盖；确认后才检查文件并执行导入，任何错误都提示导入失败。 */
+/** 选文件后先选择导入方式；替换需二次确认后才检查文件并执行导入，任何错误都提示导入失败。 */
 const useHistoryImport = () => {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<Status>(null)
   const importing = useRef(false)
 
-  const confirm = async () => {
+  const confirm = async (mode: ImportMode) => {
     if (!file || importing.current) {
       return
     }
@@ -510,8 +573,16 @@ const useHistoryImport = () => {
     setBusy(true)
     setStatus(null)
     try {
-      const count = await importHistory(file)
-      setStatus({ key: count === 1 ? 'historyImportedOne' : 'historyImported', params: { count } })
+      const { count, skipped } = await importHistory(file, mode)
+      if (mode === 'merge') {
+        setStatus(
+          count === 0
+            ? { key: 'historyMergeNothingNew' }
+            : { key: 'historyMerged', params: { count, skipped } }
+        )
+      } else {
+        setStatus({ key: count === 1 ? 'historyImportedOne' : 'historyImported', params: { count } })
+      }
     } catch {
       setStatus({ key: 'historyImportFailed', error: true })
     } finally {
@@ -523,7 +594,7 @@ const useHistoryImport = () => {
   return { file, busy, status, select: setFile, cancel: () => setFile(null), confirm }
 }
 
-/** 导入 = 覆盖：用选中文件替换本地全部会话与附件。 */
+/** 导入入口：选文件后选择合并（默认）或替换，见 ImportModeDialog。 */
 const ImportHistory = ({
   historyImport,
   disabled,
@@ -676,7 +747,7 @@ const ExportSelectModal = ({
       }
     >
       <div className={styles.exportToolbar}>
-        <button type="button" className={styles.confirm} onClick={toggleAll}>
+        <button type="button" className={styles.confirm} disabled={busy} onClick={toggleAll}>
           {t(allSelected ? 'exportDeselectAll' : 'exportSelectAll')}
         </button>
         <span className={styles.exportCount}>
@@ -689,6 +760,7 @@ const ExportSelectModal = ({
             <input
               type="checkbox"
               checked={selected.has(session.id)}
+              disabled={busy}
               onChange={() => toggle(session.id)}
             />
             <span className={styles.exportItemTitle}>{session.title || t('untitledChat')}</span>

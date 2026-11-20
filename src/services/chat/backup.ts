@@ -1,6 +1,6 @@
 import { formatDate } from '../../utils/format.js'
 import * as db from './db.js'
-import { replaceHistory, useChatStore } from './store.js'
+import { importHistoryInto, replaceHistory, useChatStore } from './store.js'
 import type { Session } from './types.js'
 
 export { BackupError } from './history/errors.js'
@@ -41,15 +41,23 @@ export const exportHistory = (sessionIds?: string[]): Promise<{ name: string; bl
     return { name: backupFileName(now), blob }
   })
 
+export type ImportMode = 'merge' | 'replace'
+
+export type ImportHistoryResult = { count: number; skipped: number }
+
 /**
- * 确认覆盖后调用：先检查 ZIP 格式与版本，校验失败时保留正在生成的回答；
- * 通过后从 ZIP 流式写入暂存，成功才替换原有会话与图片原件。返回导入的会话数。
+ * 确认后调用：先检查 ZIP 格式与版本，校验失败时保留正在生成的回答；
+ * 通过后从 ZIP 流式写入暂存，成功才替换（replace）或并入（merge）原有会话与图片原件。
+ * merge 保留现有历史：内容一致的会话跳过，同 ID 内容不同的保留为副本；count 为新加入的会话数。
  */
-export const importHistory = (file: File): Promise<number> =>
+export const importHistory = (
+  file: File,
+  mode: ImportMode = 'replace'
+): Promise<ImportHistoryResult> =>
   enqueueBackup(async () => {
     const { checkArchiveFormat, importArchive } = await import('./history/importArchive.js')
     await checkArchiveFormat(file)
-    return replaceHistory(() => importArchive(file))
+    return importHistoryInto(() => importArchive(file, mode), { merge: mode === 'merge' })
   })
 
 /** 确认删除后调用：以空历史原子替换全部本地会话与附件，保留 API Key 和其他设置。 */

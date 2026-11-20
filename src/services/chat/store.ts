@@ -503,8 +503,25 @@ export const resetChatForUser = async (userId: string | null): Promise<void> => 
  * 期间停止生成并禁止修改会话；失败时清除暂存，保留原有记录。
  */
 export const replaceHistory = async (write: () => Promise<void>): Promise<number> => {
+  const { count } = await importHistoryInto(async () => {
+    await write()
+    return { added: 0, skipped: 0 }
+  })
+  return count
+}
+
+/**
+ * 导入历史对话的公共流程：先写入暂存，成功后原子替换（replace）或并入（merge）正式数据。
+ * 期间停止生成并禁止修改会话；失败时清除暂存，原有记录保持完整。
+ * merge 保留现有对话、草稿与待传附件，仅并入新增会话；replace 以导入内容整体替换。
+ */
+export const importHistoryInto = async (
+  write: () => Promise<{ added: number; skipped: number }>,
+  options: { merge?: boolean } = {}
+): Promise<{ count: number; skipped: number }> => {
+  const merge = options.merge ?? false
   if (get().importingHistory) {
-    throw new Error('History replacement is already in progress')
+    throw new Error('History import is already in progress')
   }
   set({ importingHistory: true })
   try {
@@ -519,17 +536,20 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
     await waitForIdle()
     await db.clearStaging()
     let summaries: SessionSummary[]
+    let result: { added: number; skipped: number }
     try {
-      await write()
-      summaries = await db.commitStaging()
+      result = await write()
+      summaries = merge ? await db.mergeStaging() : await db.commitStaging()
     } catch (error) {
-      await db.clearStaging().catch(db.reportStorageError('clear unfinished history replacement'))
+      await db.clearStaging().catch(db.reportStorageError('clear unfinished history import'))
       throw error
     }
     sessionAccess.clear()
     unsavedSessions.clear()
-    pendingFiles.clear()
-    clearAllDrafts()
+    if (!merge) {
+      pendingFiles.clear()
+      clearAllDrafts()
+    }
     set({
       ready: true,
       initError: false,
@@ -537,9 +557,12 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
       sessionCache: {},
       sessionLoadErrors: {},
       sessionSaveErrors: {},
-      activeId: null,
+      ...(merge ? {} : { activeId: null }),
     })
-    return summaries.length
+    return {
+      count: merge ? result.added : summaries.length,
+      skipped: merge ? result.skipped : 0,
+    }
   } finally {
     set({ importingHistory: false })
     retrySaveSessions()

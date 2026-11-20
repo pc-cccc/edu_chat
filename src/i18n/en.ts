@@ -139,13 +139,22 @@ export const en = {
   apiKeyVerificationFailed: 'Verification failed: {message}',
   historyImport: 'Import chat history',
   historyImportConfirm: 'Import',
-  historyImportConfirmTitle: 'Import chat history?',
+  historyImportModeTitle: 'Choose import method',
+  historyImportMergeLabel: 'Merge with existing chats',
+  historyImportMergeDescription:
+    'Keeps your existing chats and attachments. Identical chats are skipped, and changed ones are kept as copies.',
+  historyImportReplaceLabel: 'Replace all chats',
+  historyImportReplaceDescription: 'Deletes all current chats and attachments, then imports the backup.',
+  historyImportConfirmTitle: 'Replace all chats?',
   historyImportConfirmDescription:
-    'The uploaded chat history will replace all your current chats. Import anyway?',
+    'All current chats and attachments will be deleted and replaced by the imported content. Continue?',
+  historyImportReplaceConfirm: 'Replace',
   historyImportDescription:
-    'Importing chat history replaces all local chats and attachments. Supports ZIP files exported from DeepSeek.',
+    'Merges with existing chats by default; you can also choose to replace all chats. Supports ZIP files exported from DeepSeek.',
   historyImportedOne: 'Imported 1 chat',
   historyImported: 'Imported {count} chats',
+  historyMerged: 'Imported {count} chats, skipped {skipped}',
+  historyMergeNothingNew: 'Nothing new to import; all chats were skipped',
   historyImportFailed:
     'File import failed. The file format may be invalid, or the ZIP file may use an older chat export format. Please export your chat history from DeepSeek again and retry the import.',
   historyExportFailed: 'Export failed: {message}',

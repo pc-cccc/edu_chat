@@ -98,6 +98,27 @@ export const loadSessionSummaries = async (): Promise<SessionSummary[]> =>
 export const loadSession = async (id: string): Promise<Session | undefined> =>
   (await getDB()).get('sessions', id)
 
+/** 合并导入前读取全部会话，用于内容比对；只在导入这类低频操作里调用。 */
+export const loadAllSessions = async (): Promise<Session[]> => (await getDB()).getAll('sessions')
+
+/** 返回 ids 中本地没有原件的文件 ID；合并导入只为「跳过的会话」回填缺失原件。 */
+export const loadMissingFileIds = async (ids: string[]): Promise<Set<string>> => {
+  const unique = [...new Set(ids)]
+  const tx = (await getDB()).transaction('files', 'readonly')
+  const missing = new Set(unique)
+  await Promise.all([
+    (async () => {
+      for (const id of unique) {
+        if (await tx.store.getKey(id)) {
+          missing.delete(id)
+        }
+      }
+    })(),
+    tx.done,
+  ])
+  return missing
+}
+
 export const saveSession = async (session: Session, files: StoredFile[] = []): Promise<void> => {
   const summary = storedSummary(session)
   const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')
@@ -259,6 +280,46 @@ export const commitStaging = async (): Promise<SessionSummary[]> => {
   await Promise.all([move('sessionsStaging', 'sessions'), move('filesStaging', 'files'), tx.done])
   // 直接返回本次提交的列表，调用方无需在替换成功后再发起可能失败的读取。
   return summaries
+}
+
+/**
+ * 合并导入完成后把暂存并入正式数据：同一事务中把暂存会话与原件写入正式存储（不清理已有数据），
+ * 更新摘要并清空暂存。事务失败时整体回滚，正式数据不变。
+ * 返回合并后的完整摘要列表，调用方用它直接重建内存状态。
+ */
+export const mergeStaging = async (): Promise<SessionSummary[]> => {
+  const tx = (await getDB()).transaction(
+    ['sessions', 'sessionSummaries', 'files', 'sessionsStaging', 'filesStaging'],
+    'readwrite'
+  )
+  try {
+    const sessions = tx.objectStore('sessions')
+    for (
+      let cursor = await tx.objectStore('sessionsStaging').openCursor();
+      cursor;
+      cursor = await cursor.continue()
+    ) {
+      const session = cursor.value as Session
+      await sessions.put(session)
+      await tx.objectStore('sessionSummaries').put(storedSummary(session))
+    }
+    const files = tx.objectStore('files')
+    for (
+      let cursor = await tx.objectStore('filesStaging').openCursor();
+      cursor;
+      cursor = await cursor.continue()
+    ) {
+      await files.put(cursor.value)
+    }
+    const summaries = (await tx.objectStore('sessionSummaries').getAll()).map(toSessionSummary)
+    await tx.objectStore('sessionsStaging').clear()
+    await tx.objectStore('filesStaging').clear()
+    await tx.done
+    return summaries
+  } catch (error) {
+    abortTransaction(tx)
+    throw error
+  }
 }
 
 /** 本地存储失败不打断对话，只在控制台留痕 */
