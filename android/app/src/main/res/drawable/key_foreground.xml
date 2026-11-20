@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <!-- 自适应图标前景：蓝色实心钥匙（环头挖孔 + 圆端杆 + 双齿 + 中缝槽 + 高光），白底由背景色提供 -->
-    <group android:scaleX="0.8" android:scaleY="0.8" android:pivotX="54" android:pivotY="54">
+    <!-- 自适应图标前景：斜 45° 蓝色实心钥匙（干净剪影），白底由背景色提供 -->
+    <group android:scaleX="2.2" android:scaleY="2.2" android:pivotX="54" android:pivotY="54"
+        android:rotation="-45">
         <path android:fillColor="#2F6BFF" android:fillType="evenOdd"
-            android:pathData="M36,35a19,19 0 1 1 -0.01,0z M36,46a8,8 0 1 0 0.01,0z M50,46L86,46A8,8 0 0 1 94,54A8,8 0 0 1 86,62L50,62z M66,62L78,62L78,75L66,75z M52,62L62,62L62,71L52,71z" />
-        <path android:fillColor="#FFFFFF" android:pathData="M56,52.4L80,52.4L80,55.6L56,55.6z" />
-        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF"
-            android:strokeWidth="3.2" android:strokeLineCap="round"
-            android:pathData="M25.4,43.4A15,15 0 0 1 21,39" />
+            android:pathData="M6.5,7.75a4.25,4.25 0 1 1 -0.01,0z M6.5,10.3a1.7,1.7 0 1 0 0.01,0z M10.75,10.4h5.15A1.6,1.6 0 0 1 17.5,12a1.6,1.6 0 0 1 -1.6,1.6h-5.15z M15.5,13.6h2.25v2.9h-2.25z M12.75,13.6h2v2.15h-2z" />
     </group>
 </vector>
