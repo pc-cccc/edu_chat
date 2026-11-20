@@ -1,129 +1,93 @@
-# Edu_chat — a DeepSeek chat client that keeps your API key inside the Worker
+# Edu_chat
 
-> A DeepSeek chat app you can actually deploy for yourself and your friends: **Cloudflare Pages** for the UI, **Cloudflare Worker** as the gateway, **Supabase** for sign-in and cloud history.
->
-> **The DeepSeek key lives only in a Worker Secret — the frontend bundle, the Android APK and the database never see it.**
+**A DeepSeek chat client you can make your own.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-54%20passed-brightgreen)](tests)
-[![Status](https://img.shields.io/badge/status-real%20chat%20working%20on%20mobile%20web-brightgreen)](#-real-status-as-of-2026-11-19)
-[![中文说明](https://img.shields.io/badge/README-中文-blue)](README.md)
+A small open-source project, built from [DeepSeek's official chat-demo](https://github.com/deepseek-ai/chat-demo), starting with the mobile browser experience. Email sign-in, personal cloud history and Android support are being developed around that foundation. **An independent project, not an official DeepSeek product.**
 
-<p align="center"><img src="docs/screenshot.png" width="360" alt="Chat UI" /></p>
+[中文](README.md) · [English](README.en.md) · [Deployment](docs/SERVERLESS.md) · [Verification log](docs/VERIFICATION.md) · [Report an issue](https://github.com/pc-cccc/edu_chat/issues)
 
-## Why this exists
+> **Milestone — November 19, 2026: a real AI reply received in a mobile browser.**
+> V0.2.2 is still in development. 54 local tests pass; that does not mean every feature has passed real-device testing.
 
-You want DeepSeek chat without shipping your API key to the browser (open DevTools and it is gone), and you want your phone to keep the same account and history.
+<p align="center"><img src="docs/screenshot.png" width="320" alt="Early Edu_chat mobile interface with a blue key icon" /></p>
+<p align="center"><sub>V0.2.1 interface preview. The current web build uses email sign-in instead of the connection setup shown here.</sub></p>
 
-The upstream chat-demo only runs locally: no sign-in, no cloud history. Most "wrapper" sites either embed the key in the frontend or hide it behind someone else's server.
+## What this project is working toward
 
-This project splits the concerns properly: **the key stays server-side, identity is issued by Supabase, history is per account**. The frontend is just a shell — reading its source reveals nothing about your key.
+A chat tool that feels comfortable on a phone, with a clear interface and a deployment you can understand.
 
-## ✨ What it solves
+- **An interface you can change:** React and TypeScript, retaining the upstream Markdown, math and diagram rendering.
+- **A server-held model key:** in the current cloud mode, the Worker injects the maintainer's DeepSeek key; it is not embedded in the browser bundle or APK.
+- **Account-scoped data:** Supabase sign-in, per-account local caches and cloud history are wired up. Local isolation tests exist; cross-device acceptance is still pending.
+- **An honest development log:** an implemented button is not the same as a tested feature. Fixes and limitations are documented.
 
-- 🔐 **Key never reaches the client**: the DeepSeek key is a Worker Secret. Login state is verified against Supabase JWTs (JWKS); anonymous and `service_role` keys are rejected, and file ownership is checked per request.
-- 🧱 **Isolation that is enforced, not decorative**: RLS is on for all 7 tables, so an account can only read its own rows. Sign in elsewhere and your history follows; sign in as someone else and it does not.
-- 📶 **Works from mainland China**: `*.workers.dev` is frequently reset there, so the web build talks to its **own origin** (`/api/*`, `/supabase/*`) and a Pages Function relays to the Worker and Supabase in the cloud. No proxy needed on the phone.
-- 🪶 **Zero-cost hosting**: Pages + Workers + Supabase free tiers; you only pay DeepSeek for actual usage.
-- 💬 **A real chat experience**: token-by-token streaming, stop generation, deep thinking, web search, file upload, Markdown / LaTeX / Mermaid.
-- 📱 **One codebase, two targets**: the same frontend builds into an installable Android APK — chat from your phone with your PC off.
+The latest fix addresses “the website loads, but sending a message fails.” Web chat, sign-in and history now use a same-origin Pages relay. It worked in the current phone test; **availability without a proxy is not guaranteed across all regions, networks or browsers.**
 
-## 🧩 Architecture
+## What has actually been verified
+
+| Area | Current status |
+| --- | --- |
+| Database, Worker and Pages deployment | Complete |
+| Real text conversation in a mobile browser | **Confirmed by the user** |
+| Auth, database permissions, relay, cancellation, session lookup timeout | Covered by local automated tests; 54 tests pass |
+| Cross-device history, sign-in restoration, two real accounts | Implemented; cloud acceptance pending |
+| Visible streaming and stopping generation | Implemented; dedicated device testing pending |
+| Thinking, search, attachments and voice | UI / integrations present; live testing pending and provider capabilities apply |
+| Android | Capacitor project and an older test APK exist; current cloud APK is unfinished |
+| PC switched off, phone chatting over mobile data | Separate acceptance test pending |
+
+The current UI is general-purpose chat. There is no education home screen or education-specific system prompt; the visualization component is only a reserved extension point.
+
+## Hosting and model costs
+
+**You do not need to rent and maintain an always-on server for the current setup. You do use managed backend services.**
+
+- Cloudflare Pages / Functions and Workers host the UI and relay. Free plans have request and CPU limits.
+- Supabase provides sign-in and history, with free-plan storage and transfer limits.
+- DeepSeek generates replies. **The current shared-key deployment charges model usage to the maintainer's account.**
+
+Open-source software does not mean free model usage or unlimited free hosting. A public repository is not an offer of unlimited free chat.
+
+Bring-your-own-key (BYOK) with local history is a possible lower-cost direction. An early `direct` mode remains in the code, but secure credential storage, native streaming and network compatibility have not been fully validated. The current deployed product has not switched to BYOK.
+
+## Try the interface locally
+
+Node.js 22.12+ is required. On Windows, use `npm.cmd` if PowerShell blocks `npm.ps1`.
+
+```powershell
+git clone https://github.com/pc-cccc/edu_chat.git
+cd edu_chat
+npm ci
+npm run demo
+```
+
+Open `http://127.0.0.1:8092`. This is a fixed-response demo: no key or paid model request is needed.
+
+For a real deployment, follow the [serverless guide](docs/SERVERLESS.md), configure your own accounts and public build variables, and run `npm run build:serverless`. Deploy the complete `dist` output, including the Pages Function. Never commit environment files, database passwords, private keys or Android signing files.
+
+## Current web architecture
 
 ```mermaid
 flowchart LR
-  B["Browser / Android app"] -->|"same-origin /api/*"| P["Cloudflare Pages<br/>static assets + Function relay"]
-  B -->|"same-origin /supabase/*"| P
-  P -->|"relay (auth headers only)"| W["Cloudflare Worker<br/>JWT check · inject key · stream"]
-  P -->|"relay"| S[("Supabase<br/>Auth · Postgres · RLS")]
-  W -->|"Bearer sk-… (only holder)"| D["DeepSeek API"]
+  B[Mobile or desktop browser] --> P[Pages UI and same-origin relay]
+  P --> W[Worker: auth and model key injection]
+  P --> S[Supabase: sign-in and history]
+  W --> D[DeepSeek API]
 ```
 
-| Layer | Service | Role |
-| --- | --- | --- |
-| Frontend | Cloudflare Pages | the web / Android UI; same-origin API relay |
-| Gateway | Cloudflare Worker | verifies login, injects the DeepSeek key, streams, rate-limits, checks file ownership |
-| Data | Supabase | email auth, private cloud history, file ownership, RLS |
+Android still has separate build and connection settings; this diagram does not represent a completed new APK. See the [Android guide](docs/ANDROID.md). The old Node gateway and Dockerfile remain for reference, not for the current cloud deployment.
 
-**Why the extra relay hop?** Connecting to `*.workers.dev` directly is unreliable on mainland Chinese networks. With same-origin `/api/*`, the browser only talks to its own domain and Cloudflare does the hop internally. The relay allows a fixed set of routes only, forwards no cookies, offers no arbitrary-URL or admin proxying, refuses redirects, and its upstream origins are baked in at build time.
+## Next up
 
-## 📊 Real status (as of 2026-11-19)
+- [ ] Verify sign-in restoration, cross-device history and account isolation.
+- [ ] Test stopping generation, thinking, search and attachments.
+- [ ] Complete the new Android connection path, build and device tests.
+- [ ] Evaluate BYOK and local-first operation with explicit cost ownership.
 
-No "fully supported" marketing here — this is where the project actually stands:
+If this is a tool you would use, **star the repository** to follow its progress. Issues and PRs are welcome. Reproduction steps and specific mobile-browser errors help; please leave out credentials and private conversations.
 
-| Capability | Status |
-| --- | --- |
-| Cloud schema: 7 tables + RLS + 3 triggers + Realtime (script self-checks) | ✅ done |
-| Worker gateway: JWT check / service_role rejection / CORS / rate limit / streaming | ✅ deployed & verified |
-| Pages deploy + same-origin relay | ✅ live |
-| **Real text chat from a mobile browser (actual answer received)** | ✅ verified |
-| Cross-device history, history after re-login | ⬜ pending |
-| Two accounts cannot see each other's data | ⬜ pending (covered by local tests) |
-| Visual streaming confirmation, stop generation | ⬜ pending |
-| Deep thinking / web search / attachments / voice | ⬜ pending (needs real quota) |
-| New Android APK build | ⬜ pending |
-| PC off + phone on mobile data | ⬜ pending re-test |
+Developer checks: run `npm --prefix workers ci`, then `npm run type`, `npm run lint` and `npm test`.
 
-Every step, command output and dead end is recorded in [VERIFICATION.md](docs/VERIFICATION.md).
+## Credits and license
 
-## 🚀 Deploy in three steps
-
-Prerequisites: a Cloudflare account, a Supabase project, a DeepSeek API key. Full walkthrough: [serverless deployment guide](docs/SERVERLESS.md).
-
-```powershell
-# 1) Create the schema (hidden prompts; nothing is written to disk or shell history)
-npm run db:setup
-
-# 2) Deploy the Worker and store the secret
-cd workers
-npx wrangler secret put DEEPSEEK_API_KEY
-npx wrangler deploy
-
-# 3) Build and deploy the frontend
-cd ..
-Copy-Item .env.serverless.example .env.serverless   # WORKER_ORIGIN / SUPABASE_URL / SUPABASE_ANON_KEY
-npm run build:serverless
-npx wrangler pages deploy dist --project-name=<your-project>
-```
-
-Afterwards set **Authentication → URL Configuration** in Supabase to your Pages domain, otherwise confirmation emails point at `localhost`.
-
-## ✅ Verify locally
-
-```powershell
-npm ci
-npm --prefix workers ci
-npm run type
-npm run lint
-npm test        # 54 tests: schema & two-role RLS isolation, Worker auth/CORS/cancel/file ownership, relay allow-list, session timeout
-```
-
-## ⚠️ Known limitations
-
-- **The bill is on the model side**: hosting is free, DeepSeek is metered. The in-memory rate limiter is not a spending cap — keep public signups closed or invite-only.
-- **Pages Functions consume Workers quota**; free-tier terms and reachable regions change over time. No promise of permanent free hosting.
-- **Realtime (multi-user) still uses the native Supabase origin**; the same-origin relay does not cover WebSockets, and there is no multi-user UI yet.
-- **The Android build connects directly** to its configured backend — bring your own reachable entry point.
-- No end-to-end encryption: a database admin could read plaintext history.
-- Concurrent cross-device editing and offline conflict merging are not implemented.
-
-## 🗺️ Roadmap
-
-- [x] Cloud schema script with self-check and rollback
-- [x] Worker gateway with key isolation
-- [x] Same-origin relay for reachability
-- [x] Real chat from a mobile browser
-- [ ] Formal acceptance: cross-device history, two-account isolation, streaming & stop
-- [ ] Deep thinking, web search, attachments, voice
-- [ ] New Android APK (same signing key)
-- [ ] Invite-only signup and usage warnings
-
-## ⭐ If this helps you
-
-The combination of **key-only-in-Worker + same-origin relay + RLS isolation** applies to anyone building their own AI chat site. If the code or the debugging notes saved you time, a **Star** is appreciated — it tells me this is worth maintaining.
-
-Issues and pull requests are welcome.
-
-## 📄 License
-
-Upstream MIT license — see [LICENSE](LICENSE). The name and icon are a personal project identity; this is **not** an official DeepSeek product and does not impersonate one.
+Thanks to DeepSeek's official chat-demo for the foundation. Upstream copyright and the [MIT license](LICENSE) are retained; see [NOTICE.md](NOTICE.md) for attribution. The Edu_chat name and key icon identify this independent project.
