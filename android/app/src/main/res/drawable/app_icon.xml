@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
-    <path android:fillColor="#3564E8" android:pathData="M15,0H33Q48,0 48,15V33Q48,48 33,48H15Q0,48 0,33V15Q0,0 15,0Z" />
-    <group android:translateX="9" android:translateY="9" android:scaleX="1.25" android:scaleY="1.25">
-        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="1.8"
-            android:pathData="M12.5,8A4.5,4.5 0,1 0,3.5 8A4.5,4.5 0,1 0,12.5 8" />
-        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round"
-            android:pathData="M11.2,11.2L20.5,20.5M16.5,16.5L19,14M14,14L16.5,11.5" />
-    </group>
+    <!-- 白底圆角方 + 蓝色实心钥匙（环头挖孔、圆端杆、双齿、中缝槽、高光） -->
+    <path android:fillColor="#FFFFFF" android:pathData="M15,0H33Q48,0 48,15V33Q48,48 33,48H15Q0,48 0,33V15Q0,0 15,0Z" />
+    <path android:fillColor="#2F6BFF" android:fillType="evenOdd"
+        android:pathData="M16,15.5a8.5,8.5 0 1 1 -0.01,0z M16,20.5a3.5,3.5 0 1 0 0.01,0z M22.5,20.5L36.5,20.5A3.5,3.5 0 0 1 40,24A3.5,3.5 0 0 1 36.5,27.5L22.5,27.5z M29.5,27.5L34.5,27.5L34.5,33.5L29.5,33.5z M23.5,27.5L27.5,27.5L27.5,32L23.5,32z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M25,23.2L35.5,23.2L35.5,24.8L25,24.8z" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.6" android:strokeLineCap="round"
+        android:pathData="M11.3,19.3A6.7,6.7 0 0 1 9.3,17.3" />
 </vector>

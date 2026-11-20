@@ -1,7 +1,10 @@
-/** Simple key mark shared by the education landing page. */
+/** 首页问候区的钥匙标记：实心剪影，跟随当前主题文字颜色 */
 export const KeyLogo = () => (
-  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-    <circle cx="8" cy="8" r="4.5" stroke="currentColor" strokeWidth="1.8" />
-    <path d="m11.2 11.2 9.3 9.3m-4-4 2.5-2.5m-5 0 2.5-2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      fill="currentColor"
+      fillRule="evenodd"
+      d="M8,7.75a4.25,4.25 0 1 1 -0.01,0z M8,10.25a1.75,1.75 0 1 0 0.01,0z M11.25,10.25h7A1.75,1.75 0 0 1 20,12a1.75,1.75 0 0 1 -1.75,1.75h-7z M14.75,13.75h2.5v3h-2.5z M11.75,13.75h2v2.25h-2z"
+    />
   </svg>
 )
