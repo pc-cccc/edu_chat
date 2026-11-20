@@ -209,6 +209,7 @@ export const en = {
   updateCheck: 'Check for updates',
   updateChecking: 'Checking…',
   updateCurrentVersion: 'Current version {version}',
+  updateLatest: 'Up to date ({version})',
   updateAvailable: 'New version {version} available',
   updateCheckFailed: 'Update check failed. Please try again later.',
   updateAction: 'Update',

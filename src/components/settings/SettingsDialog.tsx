@@ -350,6 +350,7 @@ const UpdateSetting = () => {
   const info = useUpdate((state) => state.info)
   const checking = useUpdate((state) => state.checking)
   const failed = useUpdate((state) => state.failed)
+  const checked = useUpdate((state) => state.checked)
   const downloading = useUpdate((state) => state.downloading)
 
   const onUpdate = async () => {
@@ -363,7 +364,9 @@ const UpdateSetting = () => {
     ? t('updateCheckFailed')
     : info
       ? t('updateAvailable', { version: info.version })
-      : t('updateCurrentVersion', { version: __APP_VERSION__ })
+      : checked
+        ? t('updateLatest', { version: __APP_VERSION__ })
+        : t('updateCurrentVersion', { version: __APP_VERSION__ })
 
   return (
     <SettingCell

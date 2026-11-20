@@ -199,6 +199,7 @@ export const zh = {
   updateCheck: '检查更新',
   updateChecking: '正在检查…',
   updateCurrentVersion: '当前版本 {version}',
+  updateLatest: '已是最新版本 {version}',
   updateAvailable: '发现新版本 {version}',
   updateCheckFailed: '检查更新失败，请稍后再试',
   updateAction: '更新',

@@ -9,6 +9,8 @@ type UpdateState = {
   checking: boolean
   /** 检查是否失败过（用于设置页展示重试入口） */
   failed: boolean
+  /** 至少成功检查过一次（用于区分「还没检查」与「已是最新」） */
+  checked: boolean
   /** 大更新弹窗是否打开 */
   dialogOpen: boolean
   /** 下载进行中（下载完成会由系统弹安装界面） */
@@ -19,6 +21,7 @@ export const useUpdate = create<UpdateState>(() => ({
   info: null,
   checking: false,
   failed: false,
+  checked: false,
   dialogOpen: false,
   downloading: false,
 }))
@@ -33,11 +36,12 @@ export const checkUpdates = async (): Promise<UpdateInfo | null> => {
     const info = await checkForUpdates()
     useUpdate.setState({
       info,
+      checked: true,
       dialogOpen: info !== null && (info.level === 'major' || info.level === 'minor'),
     })
     return info
   } catch {
-    useUpdate.setState({ failed: true })
+    useUpdate.setState({ failed: true, checked: true })
     return null
   } finally {
     useUpdate.setState({ checking: false })
