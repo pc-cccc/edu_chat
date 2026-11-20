@@ -16,6 +16,8 @@ import { SessionView } from '../components/session/SessionView.js'
 import { MobileHeader } from '../components/session/MobileHeader.js'
 import { Welcome } from '../components/session/Welcome.js'
 import { SettingsDialog } from '../components/settings/SettingsDialog.js'
+import { UpdateDialog } from '../components/update/UpdateDialog.js'
+import { checkUpdates } from '../components/update/updateState.js'
 import { Toast } from '../components/base/Toast.js'
 import { showToast } from '../components/base/toastState.js'
 import { onUploadNotice } from '../services/attachments.js'
@@ -84,6 +86,15 @@ export const App = () => {
       })()
       // 直连模式发送时再提示配置密钥。
     }
+  }, [])
+
+  // 直连模式：首屏稳定后静默检查更新；major/minor 弹窗推荐，patch 仅在设置页展示。
+  useEffect(() => {
+    if (__APP_MODE__ !== 'direct') {
+      return
+    }
+    const timer = setTimeout(() => void checkUpdates(), 3000)
+    return () => clearTimeout(timer)
   }, [])
 
   // serverless：登录/退出/切换账号时，重置聊天状态并加载当前用户的本地缓存。
@@ -172,6 +183,7 @@ export const App = () => {
         <SearchPanel />
       </div>
       <SettingsDialog />
+      <UpdateDialog />
       <Toast />
     </AuthGate>
   )

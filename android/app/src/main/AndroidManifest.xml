@@ -42,4 +42,6 @@
          Capacitor 会同时申请 RECORD_AUDIO 与 MODIFY_AUDIO_SETTINGS，两者都必须声明才授予。 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- App 内更新：Android 8+ 安装 APK 需要「安装未知应用」权限 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

@@ -34,6 +34,7 @@ import { Select } from '../base/Select.js'
 import { showToast } from '../base/toastState.js'
 import { ApiKeyConfirm, ApiKeyField, useApiKeyEditor } from './ApiKeyField.js'
 import { closeSettings, useSettingsDialog, type SettingsSection } from './settingsDialogState.js'
+import { checkUpdates, startUpdate, useUpdate } from '../update/updateState.js'
 import styles from './Settings.module.css'
 
 /**
@@ -100,6 +101,7 @@ const SettingsContent = () => {
               <LocaleSetting />
               <TtsVoiceSetting />
               <LocationSetting />
+              <UpdateSetting />
             </>
           ) : (
             <>
@@ -339,6 +341,53 @@ const ImportConfirm = ({
     >
       <div className={styles.importConfirmText}>{t('historyImportConfirmDescription')}</div>
     </Modal>
+  )
+}
+
+/** 版本与更新：显示当前版本；patch 更新在这里提供入口，major/minor 由启动弹窗推荐。 */
+const UpdateSetting = () => {
+  const t = useTranslate()
+  const info = useUpdate((state) => state.info)
+  const checking = useUpdate((state) => state.checking)
+  const failed = useUpdate((state) => state.failed)
+  const downloading = useUpdate((state) => state.downloading)
+
+  const onUpdate = async () => {
+    const result = await startUpdate()
+    if (result === 'needPermission') {
+      showToast({ key: 'updateNeedPermission', type: 'error' })
+    }
+  }
+
+  const description = failed
+    ? t('updateCheckFailed')
+    : info
+      ? t('updateAvailable', { version: info.version })
+      : t('updateCurrentVersion', { version: __APP_VERSION__ })
+
+  return (
+    <SettingCell
+      label={t('settingsAboutVersion')}
+      description={description}
+      status={null}
+      action={
+        info && !downloading ? (
+          <Button size="m" className={styles.cellButton} onClick={() => void onUpdate()}>
+            {t('updateAction')}
+          </Button>
+        ) : (
+          <Button
+            variant="outlined"
+            size="m"
+            className={styles.cellButton}
+            disabled={checking || downloading}
+            onClick={() => void checkUpdates()}
+          >
+            {t(checking ? 'updateChecking' : 'updateCheck')}
+          </Button>
+        )
+      }
+    />
   )
 }
 
