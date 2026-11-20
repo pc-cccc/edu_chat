@@ -1,6 +1,6 @@
 {
   "name": "edu-chat",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Edu_chat：个人聊天项目，非官方产品。",
   "license": "MIT",
   "private": true,
@@ -13,6 +13,7 @@
     "build:direct": "node scripts/build.mjs --direct",
     "build:serverless": "node --env-file-if-exists=.env.serverless scripts/build.mjs --serverless",
     "build:android": "node scripts/build.mjs --android",
+    "build:android:direct": "node scripts/build.mjs --android --direct",
     "build:android:serverless": "node --env-file-if-exists=.env.serverless scripts/build.mjs --android --serverless",
     "android:sync": "cap sync android",
     "android:open": "cap open android",
