@@ -10,7 +10,7 @@ export const ChatIntro = () => {
         <KeyLogo />
       </div>
       <div className="education-eyebrow">
-        {t('appName')} <span>V0.3.1</span>
+        {t('appName')} <span>V0.3.2</span>
       </div>
       <h1 className="chat-greeting">{t('welcomeMessageChat250808')}</h1>
     </div>

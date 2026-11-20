@@ -187,7 +187,7 @@ export const en = {
   voiceInputStop: 'Stop recording and transcribe',
   voiceInputCancel: 'Transcribing. Click to cancel',
   voiceInputPermissionDenied:
-    'Microphone access is blocked. Please allow it in your browser settings.',
+    'Microphone access is blocked. Please allow recording for this app in system settings.',
   voiceInputNoDevice: 'No microphone detected',
   voiceInputTooLong: 'Recording is too long. Please shorten it and try again.',
   voiceInputFailed: 'Speech recognition failed. Please try again later.',

@@ -38,6 +38,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- 语音输入：WebView getUserMedia 录音需要应用声明麦克风权限 -->
+    <!-- 语音输入：WebView getUserMedia 录音需要应用声明麦克风权限。
+         Capacitor 会同时申请 RECORD_AUDIO 与 MODIFY_AUDIO_SETTINGS，两者都必须声明才授予。 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>

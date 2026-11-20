@@ -177,7 +177,7 @@ export const zh = {
   voiceInputTimer: '录音中 {seconds}s',
   voiceInputStop: '结束录音并转写',
   voiceInputCancel: '正在转写，点击取消',
-  voiceInputPermissionDenied: '无法使用麦克风，请在浏览器设置中允许访问',
+  voiceInputPermissionDenied: '无法使用麦克风，请在系统设置中允许本应用录音',
   voiceInputNoDevice: '未检测到麦克风',
   voiceInputTooLong: '录音过长，请缩短后重试',
   voiceInputFailed: '语音识别失败，请稍后再试',
