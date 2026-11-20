@@ -1,93 +1,137 @@
 # Edu_chat
 
-**A DeepSeek chat client you can make your own.**
+**An open-source DeepSeek chat client, built around the Android app. Install it, add your own API key, and start chatting.**
 
-A small open-source project, built from [DeepSeek's official chat-demo](https://github.com/deepseek-ai/chat-demo), starting with the mobile browser experience. Email sign-in, personal cloud history and Android support are being developed around that foundation. **An independent project, not an official DeepSeek product.**
+No coding, server deployment, or Edu_chat account required. Chat on your phone, read code and equations, and export conversations you want to keep. A web version is available for browser access.
 
-[中文](README.md) · [English](README.en.md) · [Deployment](docs/SERVERLESS.md) · [Verification log](docs/VERIFICATION.md) · [Report an issue](https://github.com/pc-cccc/edu_chat/issues)
+Built from [DeepSeek's official chat-demo](https://github.com/deepseek-ai/chat-demo). **An independent personal project, not an official DeepSeek product.**
 
-> **Milestone — November 19, 2026: a real AI reply received in a mobile browser.**
-> V0.2.2 is still in development. 54 local tests pass; that does not mean every feature has passed real-device testing.
+**[Download Android app](https://github.com/pc-cccc/edu_chat/releases/latest) · [Open web app](https://edu-chat-9yt.pages.dev) · [Report an issue](https://github.com/pc-cccc/edu_chat/issues) · [中文](README.md)**
 
-<p align="center"><img src="docs/screenshot.png" width="320" alt="Early Edu_chat mobile interface with a blue key icon" /></p>
-<p align="center"><sub>V0.2.1 interface preview. The current web build uses email sign-in instead of the connection setup shown here.</sub></p>
+> Current version: **v0.4.7**, adding selection of one or more conversations for export to a single ZIP.
+> Edu_chat is free and open source. You supply your own DeepSeek API key and pay for model usage through your DeepSeek platform account.
 
-## What this project is working toward
+## Get started
 
-A chat tool that feels comfortable on a phone, with a clear interface and a deployment you can understand.
+### 1. Install the Android app
 
-- **An interface you can change:** React and TypeScript, retaining the upstream Markdown, math and diagram rendering.
-- **A server-held model key:** in the current cloud mode, the Worker injects the maintainer's DeepSeek key; it is not embedded in the browser bundle or APK.
-- **Account-scoped data:** Supabase sign-in, per-account local caches and cloud history are wired up. Local isolation tests exist; cross-device acceptance is still pending.
-- **An honest development log:** an implemented button is not the same as a tested feature. Fixes and limitations are documented.
+Requires **Android 7.0 or later**. An iOS package is not currently available.
 
-The latest fix addresses “the website loads, but sending a message fails.” Web chat, sign-in and history now use a same-origin Pages relay. It worked in the current phone test; **availability without a proxy is not guaranteed across all regions, networks or browsers.**
+- **[Download Edu_chat_v0.4.7.apk](https://github.com/pc-cccc/edu_chat/releases/download/v0.4.7/Edu_chat_v0.4.7.apk)**, or visit [latest releases](https://github.com/pc-cccc/edu_chat/releases/latest) and select the `.apk` file under **Assets**.
+- Open the APK from your phone's downloads and follow the installation prompts. If Android requests installation permission for your browser or file manager, confirm that the download came from this repository before granting it.
+- You do **not** need `Source code (zip)` or `Source code (tar.gz)`. Those are developer files, not installers.
 
-## What has actually been verified
+When updating, back up important conversations and install over the existing app. Do not uninstall first to work around a signature error; record the error and report it.
 
-| Area | Current status |
+### 2. Get a DeepSeek API key
+
+An API key is a credential that lets this app call DeepSeek using your account. It is not your login password or a verification code.
+
+1. Register or sign in at the [DeepSeek platform](https://platform.deepseek.com).
+2. Create and copy a key from API Keys. See the [official API introduction](https://api-docs.deepseek.com/) for the key application link.
+3. Check your API balance and top up through DeepSeek if needed. Charges follow the platform's current pricing.
+
+Access to DeepSeek's official chat app does not imply an API key or API balance. Never post your key in issues, comments, or screenshots.
+
+### 3. Send your first message
+
+Open Edu_chat and follow the API key prompt, or open Settings from the sidebar. Paste your key, confirm, and send “Hello.”
+
+No server address is needed and your computer can stay off. Your phone needs an internet connection that can reach DeepSeek's API.
+
+### Prefer a browser?
+
+Open **[Edu_chat on the web](https://edu-chat-9yt.pages.dev)** and enter your own key. It works as a browser client on phones and computers, without deploying anything yourself.
+
+History does **not** sync between the app, browsers, or devices. The web version stores your key and history in the current browser; use your own device and usual browser.
+
+## Features
+
+| Feature | What to expect |
 | --- | --- |
-| Database, Worker and Pages deployment | Complete |
-| Real text conversation in a mobile browser | **Confirmed by the user** |
-| Auth, database permissions, relay, cancellation, session lookup timeout | Covered by local automated tests; 54 tests pass |
-| Cross-device history, sign-in restoration, two real accounts | Implemented; cloud acceptance pending |
-| Visible streaming and stopping generation | Implemented; dedicated device testing pending |
-| Thinking, search, attachments and voice | UI / integrations present; live testing pending and provider capabilities apply |
-| Android | Capacitor project and an older test APK exist; current cloud APK is unfinished |
-| PC switched off, phone chatting over mobile data | Separate acceptance test pending |
+| Chat | Streaming replies, stop generation, copy, and regenerate |
+| Deep thinking | A switch for requests that benefit from additional reasoning |
+| Smart search | Search when needed; currently, turn off deep thinking for more reliable search triggering |
+| Rich responses | Markdown, highlighted code, math, and Mermaid diagrams |
+| Local history | Keep and switch between conversations on the current device |
+| Selected export | Choose one, several, or all conversations in Settings and export a ZIP |
+| History import | Restore a compatible history ZIP; currently replaces all local conversations and attachments |
 
-The current UI is general-purpose chat. There is no education home screen or education-specific system prompt; the visualization component is only a reserved extension point.
+Image, file, and voice capabilities depend on DeepSeek API support, your account, and network conditions. This project does not promise full feature parity with the official app. Search combined with deep thinking has known limitations.
 
-## Hosting and model costs
+## Backups and updates
 
-**You do not need to rent and maintain an always-on server for the current setup. You do use managed backend services.**
+In Settings, choose history export, select Download, check the conversations to include, and export. Keep the ZIP somewhere you can find later.
 
-- Cloudflare Pages / Functions and Workers host the UI and relay. Free plans have request and CPU limits.
-- Supabase provides sign-in and history, with free-plan storage and transfer limits.
-- DeepSeek generates replies. **The current shared-key deployment charges model usage to the maintainer's account.**
+- Exports contain selected conversations and locally stored original images, but no API key.
+- Other attachments include file metadata only, **not the original files**. Save important files separately.
+- Selection and counting were tested in a browser for v0.4.7. Full Android acceptance of selective export, saving, and re-import is still pending.
 
-Open-source software does not mean free model usage or unlimited free hosting. A public repository is not an offer of unlimited free chat.
+To move to another device, export your history, import it on the destination, and enter your key separately.
 
-Bring-your-own-key (BYOK) with local history is a possible lower-cost direction. An early `direct` mode remains in the code, but secure credential storage, native streaming and network compatibility have not been fully validated. The current deployed product has not switched to BYOK.
+> **Import currently replaces history; it does not merge it.** Importing a ZIP with two conversations onto a device with ten will replace those ten with the two in the file. Back up important destination history first.
 
-## Try the interface locally
+Check for updates in **Settings → About version → Check for updates**, or download an APK from [latest releases](https://github.com/pc-cccc/edu_chat/releases/latest). Patch updates may require a manual check.
 
-Node.js 22.12+ is required. On Windows, use `npm.cmd` if PowerShell blocks `npm.ps1`.
+## Costs and data
 
-```powershell
-git clone https://github.com/pc-cccc/edu_chat.git
+- **No rented server needed:** the published app and hosted web version use your own DeepSeek key. No public free key is provided.
+- **No Edu_chat account or cloud sync:** history stays in local storage. Uninstalling the app or clearing app/browser data may remove history and credentials.
+- **Not offline AI:** generating a response sends conversation content and required attachments to DeepSeek's services.
+- **Key storage differs by platform:** Android prefers system-backed encrypted storage, but currently falls back to ordinary local storage if that fails. The web version uses browser local storage and does not offer equivalent protection. Direct mode does not route model requests through the maintainer's model proxy.
+
+## Troubleshooting
+
+| Problem | Try this |
+| --- | --- |
+| Download page unavailable | Try another network/browser, or try the web app |
+| Invalid key | Copy it again, remove extra spaces, and check that it has not been deleted |
+| Insufficient balance | Check your DeepSeek platform API balance |
+| Network error | Try the web app in your phone's system browser, switch networks, and check access to the DeepSeek platform |
+| Search does not trigger | Turn off deep thinking; search being enabled does not mean every request will search |
+| History missing on another device | Export/import manually; local history does not sync |
+
+If the problem continues, [open an issue](https://github.com/pc-cccc/edu_chat/issues) with app/web version, device/browser, steps, and the error. Remove keys and private conversations from screenshots.
+
+## Development progress
+
+The **Android app's everyday usability** is the priority; the website is a companion entry point. v0.4.7 provides an APK and selective export. Next priorities are safer backup restoration, device testing, and the interaction between search and thinking. iOS and cloud sync are not currently provided.
+
+If Edu_chat is useful to you, give it a **Star** to help others discover it. Specific feedback about confusing steps and awkward interactions is welcome.
+
+## For developers
+
+App users can skip this section.
+
+<details>
+<summary>Source setup and builds</summary>
+
+React 18, TypeScript, Rspack, Zustand, and Capacitor. Active branch: `mobile`. Published app/web builds use `direct` mode.
+
+Requires Node.js 22.12+. If Windows blocks `npm.ps1`, use `npm.cmd` instead.
+
+```sh
+git clone --branch mobile https://github.com/pc-cccc/edu_chat.git
 cd edu_chat
 npm ci
-npm run demo
+npm run dev:direct
 ```
 
-Open `http://127.0.0.1:8092`. This is a fixed-response demo: no key or paid model request is needed.
+Open `http://127.0.0.1:8090` and enter a key in the UI. For a fixed-response preview without a key, use `npm run demo` and open `http://127.0.0.1:8092`.
 
-For a real deployment, follow the [serverless guide](docs/SERVERLESS.md), configure your own accounts and public build variables, and run `npm run build:serverless`. Deploy the complete `dist` output, including the Pages Function. Never commit environment files, database passwords, private keys or Android signing files.
-
-## Current web architecture
-
-```mermaid
-flowchart LR
-  B[Mobile or desktop browser] --> P[Pages UI and same-origin relay]
-  P --> W[Worker: auth and model key injection]
-  P --> S[Supabase: sign-in and history]
-  W --> D[DeepSeek API]
+```sh
+npm run build:direct
+npm run build:android:direct
+npm run android:sync
+npm run android:open
 ```
 
-Android still has separate build and connection settings; this diagram does not represent a completed new APK. See the [Android guide](docs/ANDROID.md). The old Node gateway and Dockerfile remain for reference, not for the current cloud deployment.
+The web build is written to `dist/`. Android builds also require a JDK and Android SDK; complete packaging in Android Studio. The v0.4.7 APK is a debug build. Manage signing consistently for future distribution and upgrades; never commit keys or signing files.
 
-## Next up
+Legacy Node, Cloudflare, and Supabase implementations remain in the repository. [Serverless docs](docs/SERVERLESS.md), [old verification records](docs/VERIFICATION.md), and [Android build history](docs/ANDROID.md) describe earlier setups, not current end-user onboarding.
 
-- [ ] Verify sign-in restoration, cross-device history and account isolation.
-- [ ] Test stopping generation, thinking, search and attachments.
-- [ ] Complete the new Android connection path, build and device tests.
-- [ ] Evaluate BYOK and local-first operation with explicit cost ownership.
-
-If this is a tool you would use, **star the repository** to follow its progress. Issues and PRs are welcome. Reproduction steps and specific mobile-browser errors help; please leave out credentials and private conversations.
-
-Developer checks: run `npm --prefix workers ci`, then `npm run type`, `npm run lint` and `npm test`.
+</details>
 
 ## Credits and license
 
-Thanks to DeepSeek's official chat-demo for the foundation. Upstream copyright and the [MIT license](LICENSE) are retained; see [NOTICE.md](NOTICE.md) for attribution. The Edu_chat name and key icon identify this independent project.
+Thanks to [DeepSeek's official chat-demo](https://github.com/deepseek-ai/chat-demo) for the foundation. Upstream copyright and the [MIT license](LICENSE) are retained; see [NOTICE.md](NOTICE.md). Edu_chat's name and key icon identify this independent project, not an official DeepSeek product.
