@@ -150,10 +150,16 @@ export const en = {
     'File import failed. The file format may be invalid, or the ZIP file may use an older chat export format. Please export your chat history from DeepSeek again and retry the import.',
   historyExportFailed: 'Export failed: {message}',
   historyExportedToDownloads: 'Exported to the Downloads folder',
-  exportAllLabel: 'Export all chats',
+  exportAllLabel: 'Export chats',
   historyExportDescription:
-    'Includes all chat history and locally stored images. Other attachments retain file details only. Your API Key is not included.',
+    'Select the chats to export. Includes chat content and locally stored images. Other attachments retain file details only. Your API Key is not included.',
   exportAllDownload: 'Download',
+  exportSelectTitle: 'Select chats to export',
+  exportSelectAll: 'Select all',
+  exportDeselectAll: 'Deselect all',
+  exportSelectedCount: '{count} selected',
+  exportSelectedAction: 'Export',
+  historyExporting: 'Exporting...',
   deleteAllSessions: 'Delete all chats',
   deleteAllSessionsModalTitle: 'Once deleted, all chats will be cleared and cannot be recovered.',
   deleteAllSessionsModalDescription:

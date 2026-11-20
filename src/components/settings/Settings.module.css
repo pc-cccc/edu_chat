@@ -453,3 +453,71 @@
     max-width: 100%;
   }
 }
+
+.exportSelect {
+  width: 480px;
+  max-width: calc(100vw - 32px);
+}
+
+.exportToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.exportCount {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.exportList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(46vh, 400px);
+  margin: 0 -10px;
+  padding: 0 10px;
+  overflow-y: auto;
+}
+
+.exportItem {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
+
+  input {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--dsw-alias-brand-primary);
+  }
+}
+
+.exportItemTitle {
+  flex: 1 0 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--dsw-alias-label-primary);
+}
+
+.exportItemDate {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}

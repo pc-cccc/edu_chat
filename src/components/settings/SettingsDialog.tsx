@@ -28,6 +28,7 @@ import {
   type ThemePreference,
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
+import { formatDate } from '../../utils/format.js'
 import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
@@ -569,44 +570,132 @@ const ImportHistory = ({
   )
 }
 
-/** 将全部会话及图片导出为 ZIP 文件并下载 */
+/** 选择要导出的会话：弹窗勾选（默认全选）后导出为 ZIP 文件并下载 */
 const ExportHistory = ({ disabled }: { disabled: boolean }) => {
   const t = useTranslate()
   const empty = useChatStore((state) => state.sessions.length === 0)
-  const [busy, setBusy] = useState(false)
+  const [open, setOpen] = useState(false)
   const [status, setStatus] = useState<Status>(null)
 
-  const onExport = async () => {
-    setBusy(true)
-    setStatus(null)
+  const onExport = async (sessionIds: string[]) => {
     try {
-      const { name, blob } = await exportHistory()
+      const { name, blob } = await exportHistory(sessionIds)
       await saveGeneratedFile(name, blob)
+      setOpen(false)
       showToast({ key: 'historyExportedToDownloads' })
     } catch (error) {
+      setOpen(false)
       setStatus(errorStatus('historyExportFailed', error))
+    }
+  }
+
+  return (
+    <>
+      <SettingCell
+        label={t('exportAllLabel')}
+        description={t('historyExportDescription')}
+        status={status}
+        action={
+          <Button
+            variant="outlined"
+            size="m"
+            className={styles.cellButton}
+            disabled={disabled || empty}
+            onClick={() => setOpen(true)}
+          >
+            <IconDownloadOutline16 />
+            {t('exportAllDownload')}
+          </Button>
+        }
+      />
+      {open ? <ExportSelectModal onClose={() => setOpen(false)} onExport={onExport} /> : null}
+    </>
+  )
+}
+
+/** 勾选要导出的会话，默认全选；导出进行中不可关闭。 */
+const ExportSelectModal = ({
+  onClose,
+  onExport,
+}: {
+  onClose: () => void
+  onExport: (sessionIds: string[]) => Promise<void>
+}) => {
+  const t = useTranslate()
+  const sessions = useChatStore((state) => state.sessions)
+  const [selected, setSelected] = useState(() => new Set(sessions.map((item) => item.id)))
+  const [busy, setBusy] = useState(false)
+
+  const allSelected = selected.size === sessions.length
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(sessions.map((item) => item.id)))
+  }
+  const toggle = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+  const confirm = async () => {
+    setBusy(true)
+    try {
+      await onExport([...selected])
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <SettingCell
-      label={t('exportAllLabel')}
-      description={t('historyExportDescription')}
-      status={status}
-      action={
-        <Button
-          variant="outlined"
-          size="m"
-          className={styles.cellButton}
-          disabled={disabled || busy || empty}
-          onClick={() => void onExport()}
-        >
-          <IconDownloadOutline16 />
-          {t('exportAllDownload')}
-        </Button>
+    <Modal
+      title={t('exportSelectTitle')}
+      closable
+      className={styles.exportSelect}
+      onClose={() => {
+        if (!busy) {
+          onClose()
+        }
+      }}
+      footer={
+        <>
+          <Button variant="outlined" size="m" disabled={busy} onClick={onClose}>
+            {t('cancel')}
+          </Button>
+          <Button
+            size="m"
+            disabled={busy || selected.size === 0}
+            onClick={() => void confirm()}
+          >
+            {t(busy ? 'historyExporting' : 'exportSelectedAction')}
+          </Button>
+        </>
       }
-    />
+    >
+      <div className={styles.exportToolbar}>
+        <button type="button" className={styles.confirm} onClick={toggleAll}>
+          {t(allSelected ? 'exportDeselectAll' : 'exportSelectAll')}
+        </button>
+        <span className={styles.exportCount}>
+          {t('exportSelectedCount', { count: selected.size })}
+        </span>
+      </div>
+      <div className={styles.exportList}>
+        {sessions.map((session) => (
+          <label key={session.id} className={styles.exportItem}>
+            <input
+              type="checkbox"
+              checked={selected.has(session.id)}
+              onChange={() => toggle(session.id)}
+            />
+            <span className={styles.exportItemTitle}>{session.title || t('untitledChat')}</span>
+            <span className={styles.exportItemDate}>{formatDate(session.updatedAt)}</span>
+          </label>
+        ))}
+      </div>
+    </Modal>
   )
 }
