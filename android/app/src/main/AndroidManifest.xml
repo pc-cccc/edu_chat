@@ -38,4 +38,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 语音输入：WebView getUserMedia 录音需要应用声明麦克风权限 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 </manifest>
