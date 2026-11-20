@@ -126,6 +126,12 @@ export const en = {
   avatarMenuSettingsDialogThemeSelectSystemOption: 'System',
   apiKeyStart: 'Enter an API Key to get started',
   apiKeyEdit: 'Edit API Key',
+  apiKeyClear: 'Clear API Key',
+  apiKeyGuideTitle: 'Start with your DeepSeek key',
+  apiKeyGuideDescription:
+    'This app talks to DeepSeek directly without an account. Usage is billed to your own DeepSeek account.',
+  apiKeyGuideHowTo: 'Sign up and top up at platform.deepseek.com, then create an API key.',
+  apiKeyGuideAction: 'Enter API key',
   apiKeyPlaceholder: 'Enter API Key',
   apiKeyVerifying: 'Verifying...',
   confirm: 'Confirm',

@@ -1,0 +1,40 @@
+.guide {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-2);
+  text-align: left;
+}
+
+.title {
+  margin-bottom: 8px;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.text {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.howto {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+@media not all and (min-width: 768px) {
+  .guide {
+    flex-shrink: 0;
+    margin-bottom: 12px;
+  }
+}

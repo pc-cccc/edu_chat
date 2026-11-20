@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { IconEditOutline16 } from '../base/icons.js'
-import { useSettings } from '../../services/settings.js'
+import { IconEditOutline16, IconTrashOutline16 } from '../base/icons.js'
+import { useSettings, setApiKey } from '../../services/settings.js'
 import { useIsMobile } from '../../app/viewport.js'
 import { IconButton } from '../base/IconButton.js'
 import { useApiKeyForm } from './useApiKeyForm.js'
@@ -14,7 +14,11 @@ export const useApiKeyEditor = () => {
   const apiKey = useSettings((state) => state.apiKey)
   const [editing, setEditing] = useState(false)
   const form = useApiKeyForm(() => setEditing(false))
-  return { apiKey, editing, setEditing, form, showInput: !apiKey || editing }
+  const clear = () => {
+    setEditing(false)
+    void setApiKey(null)
+  }
+  return { apiKey, editing, setEditing, form, clear, showInput: !apiKey || editing }
 }
 
 type ApiKeyEditor = ReturnType<typeof useApiKeyEditor>
@@ -23,7 +27,7 @@ type ApiKeyEditor = ReturnType<typeof useApiKeyEditor>
 export const ApiKeyField = ({ editor }: { editor: ApiKeyEditor }) => {
   const t = useTranslate()
   const isMobile = useIsMobile()
-  const { apiKey, editing, setEditing, form, showInput } = editor
+  const { apiKey, editing, setEditing, form, clear, showInput } = editor
 
   if (__APP_MODE__ === 'demo') {
     return <div className={styles.cell}><div>
@@ -55,6 +59,12 @@ export const ApiKeyField = ({ editor }: { editor: ApiKeyEditor }) => {
               icon={<IconEditOutline16 />}
               tooltip={t('apiKeyEdit')}
               onClick={() => setEditing(true)}
+            />
+            <IconButton
+              tone="tertiary"
+              icon={<IconTrashOutline16 />}
+              tooltip={t('apiKeyClear')}
+              onClick={clear}
             />
           </div>
         ) : (

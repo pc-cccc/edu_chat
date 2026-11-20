@@ -4,6 +4,7 @@ import { ChatInput } from '../chatInput/ChatInput.js'
 import { MobileHeader } from './MobileHeader.js'
 import styles from './Welcome.module.css'
 import { ChatIntro } from './ChatIntro.js'
+import { ApiKeyGuide } from './ApiKeyGuide.js'
 import { ConnectionStatus } from '../education/ConnectionStatus.js'
 
 /** 新对话：问候语 + 输入框。桌面端居中；移动端输入框吸底 */
@@ -15,6 +16,7 @@ export const Welcome = () => {
       {isMobile ? <MobileHeader /> : null}
       <div className={styles.welcome}>
         <ChatIntro />
+        <ApiKeyGuide />
         <ChatInput sessionId={null} />
         <ConnectionStatus />
         <div className="education-footer">{t('independentProject')}</div>

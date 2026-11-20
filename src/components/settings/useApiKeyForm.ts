@@ -36,7 +36,7 @@ export const useApiKeyForm = (onSaved?: () => void) => {
     setFailure(null)
     try {
       await verifyApiKey(apiKey)
-      setApiKey(apiKey)
+      await setApiKey(apiKey)
       setValue('')
       onSaved?.()
     } catch (e) {

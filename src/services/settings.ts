@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { TtsVoice } from './api/speech.js'
+import { loadApiKey, saveApiKey } from './apiKeyStorage.js'
 import { normalizeLocation, type UserLocation } from './location.js'
 
 export type Locale = 'zh-CN' | 'en-US'
@@ -20,7 +21,6 @@ type Settings = {
 }
 
 const KEYS = {
-  apiKey: 'zhixue-chat:api-key',
   locale: 'zhixue-chat:locale',
   location: 'zhixue-chat:location',
   themePreference: 'zhixue-chat:theme-preference',
@@ -88,7 +88,7 @@ const initialThemePreference = (): ThemePreference => {
 const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide' : 'stella')
 
 export const useSettings = create<Settings>(() => ({
-  apiKey: __APP_MODE__ === 'direct' ? read(KEYS.apiKey) : 'server-managed',
+  apiKey: __APP_MODE__ === 'direct' ? null : 'server-managed',
   locale: initialLocale(),
   location: initialLocation(),
   themePreference: initialThemePreference(),
@@ -119,11 +119,20 @@ export const setTtsVoice = (ttsVoice: TtsVoice) => {
   useSettings.setState({ ttsVoice })
 }
 
-export const setApiKey = (apiKey: string | null) => {
+export const setApiKey = async (apiKey: string | null) => {
   if (__APP_MODE__ !== 'direct') {
     return
   }
-  write(KEYS.apiKey, apiKey)
+  await saveApiKey(apiKey)
+  useSettings.setState({ apiKey })
+}
+
+/** 启动时从加密存储加载已保存的 API Key（含旧明文自动迁移） */
+export const initApiKey = async () => {
+  if (__APP_MODE__ !== 'direct') {
+    return
+  }
+  const apiKey = await loadApiKey()
   useSettings.setState({ apiKey })
 }
 
