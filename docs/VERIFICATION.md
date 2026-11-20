@@ -1,6 +1,6 @@
 ## 2026-11-20：V0.3 手机版（direct 模式）三阶段实测通过
 
-分支 `v0.3-mobile-direct`，基于 main（`b3b01bf`）；main 的网页 serverless 版未改动。当前提交 `9794057`，版本 0.3.2 / versionCode 7。
+分支 `v0.3-mobile-direct`，基于 main（`b3b01bf`）；main 的网页 serverless 版未改动。当前版本 0.3.3 / versionCode 8。版本号统一以 package.json 为准，首页展示由构建注入。
 
 ### 已完成
 

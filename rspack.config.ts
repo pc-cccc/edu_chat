@@ -85,6 +85,7 @@ export const createConfig = ({
       __API_ORIGIN__: JSON.stringify(apiOrigin),
       __APP_MODE__: JSON.stringify(process.env.APP_MODE ?? 'server'),
       __APP_TARGET__: JSON.stringify(process.env.APP_TARGET ?? 'web'),
+      __APP_VERSION__: JSON.stringify(version),
       __WORKER_ORIGIN__: JSON.stringify(process.env.WORKER_ORIGIN ?? ''),
       __SUPABASE_URL__: JSON.stringify(process.env.SUPABASE_URL ?? ''),
       __SUPABASE_ANON_KEY__: JSON.stringify(process.env.SUPABASE_ANON_KEY ?? ''),

@@ -7,7 +7,8 @@ android {
         applicationId "com.educhat.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
+        // versionName 与 package.json 的 version 保持一致，只改 package.json 即可
+        versionCode 9
         versionName "0.3.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
