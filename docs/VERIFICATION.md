@@ -1,3 +1,49 @@
+## 2026-11-20：V0.3 手机版（direct 模式）三阶段实测通过
+
+分支 `v0.3-mobile-direct`，基于 main（`b3b01bf`）；main 的网页 serverless 版未改动。当前提交 `9794057`，版本 0.3.2 / versionCode 7。
+
+### 已完成
+
+- 复用项目已有的 direct 模式，未重写、未更换协议：仍走 DeepSeek 官方 Anthropic 兼容接口 `https://api.deepseek.com/anthropic/v1/messages`，`thinking`、`deepseek_web_search`、Files API 均按官方文档格式发送。
+- 2026-11-20 实测 DeepSeek 的 CORS 预检对任意 Origin 返回 200（回显 `https://localhost`），因此 Capacitor WebView 直连无需中转服务器。
+- 用户自己的 Key 只存本机：Android 走 `@aparajita/capacitor-secure-storage`（Keystore 加密），Web 端回退 localStorage；旧明文 `zhixue-chat:api-key` 首次启动自动迁移。APK 内未打包任何密钥。
+- 首次打开（无 Key）显示配置引导；设置页可修改、清除 Key，界面仅显示掩码。
+- Android 签名沿用原 debug.keystore，证书 SHA-256 `B817B132...FAC3`，与 V0.2.1 一致，可覆盖安装、无需卸载。
+- 本地构建走 `toolchain\gradle` 缓存 + 阿里云镜像 init 脚本，规避 dl.google.com 国内超时。
+
+### 用户真机实测通过（Android，真实 DeepSeek 账户）
+
+| 项目 | 结论 |
+|---|---|
+| 填 Key、普通文本、流式回答、停止生成、断网提示 | 通过 |
+| 覆盖安装后旧 Key 自动迁移、无需重填 | 通过 |
+| 清除 Key、重新填写 | 通过（0.3.1 起） |
+| 深度思考：出现思考过程块 + 答案 | 通过 |
+| 智能搜索：出现「搜索到 N 个网页」卡片 + 引用回答 | 通过（需关闭深度思考；仅声明工具不保证触发，已由提示词引导） |
+| 图片附件：描述准确 | 通过 |
+| 文档附件：能正确总结文件内容 | 通过 |
+| 语音输入：录音 → 转写 → 发送 | 通过（0.3.2 修复权限后） |
+
+### 本轮修复的问题
+
+- 0.3.0 与 0.3.1 曾共用 versionCode，导致用户重装后仍运行旧包、看不到新入口。已改为每次递增 versionCode，并在首页显示版本号便于核对。
+- 语音始终失败：`AndroidManifest.xml` 只声明了 `RECORD_AUDIO`。Capacitor 的 `onPermissionRequest` 会同时申请 `RECORD_AUDIO` 与 `MODIFY_AUDIO_SETTINGS`，**全部授予**才 grant；缺声明导致即便用户同意录音仍返回 `NotAllowedError`。已补齐两个权限，并在 APK 内用 `aapt2 dump permissions` 复核。
+- 权限提示文案由「浏览器设置」改为「系统设置」，App 内无浏览器设置入口。
+
+### 尚未验证
+
+- 电脑关机后，手机分别用 Wi-Fi 与移动数据发送新消息（direct 模式不依赖维护者后端，预期可用，待实测）。
+- 真机键盘遮挡、系统返回键、杀进程重启后历史保留、长对话流式中途停止。
+- 会话新建 / 重命名 / 删除的完整手势路径。
+- iOS 未构建；跨设备同步未做。
+
+### 验证方式
+
+- `npm test` 54/54、`npm run type` 0 错误、`npm run lint` 0 警告。
+- APK 经 `apksigner verify` 校验签名；`aapt2 dump permissions` 确认权限列表。
+
+---
+
 ## 2026-11-19 23:31：手机真实文本聊天通过（用户实测）
 
 - 用户明确确认“收到实际回答”，并提供手机浏览器截图：发送“你好”后出现 AI 的完整文字回答，页面底部显示“已登录 · 聊天服务已连接”。由此将网页版基础文本聊天从待验证更新为通过。
