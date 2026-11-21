@@ -10,7 +10,7 @@ Built from [DeepSeek's official chat-demo](https://github.com/deepseek-ai/chat-d
 
 [Download Android app](https://github.com/pc-cccc/edu_chat/releases/latest) · [Open web app](https://edu-chat-9yt.pages.dev) · [Report an issue](https://github.com/pc-cccc/edu_chat/issues)
 
-> Current version: **v0.4.7**, adding selection of one or more conversations for export to a single ZIP.
+> Current version: **v0.4.8**, with merge-by-default import, a second confirmation for replacement, and locked export selections.
 > Edu_chat is free and open source. You supply your own DeepSeek API key and pay for model usage through your DeepSeek platform account.
 
 ## Get started
@@ -19,7 +19,7 @@ Built from [DeepSeek's official chat-demo](https://github.com/deepseek-ai/chat-d
 
 Requires **Android 7.0 or later**. An iOS package is not currently available.
 
-- **[Download Edu_chat_v0.4.7.apk](https://github.com/pc-cccc/edu_chat/releases/download/v0.4.7/Edu_chat_v0.4.7.apk)**, or visit [latest releases](https://github.com/pc-cccc/edu_chat/releases/latest) and select the `.apk` file under **Assets**.
+- **[Download Edu_chat_v0.4.8.apk](https://github.com/pc-cccc/edu_chat/releases/download/v0.4.8/Edu_chat_v0.4.8.apk)**, or visit [latest releases](https://github.com/pc-cccc/edu_chat/releases/latest) and select the `.apk` file under **Assets**.
 - Open the APK from your phone's downloads and follow the installation prompts. If Android requests installation permission for your browser or file manager, confirm that the download came from this repository before granting it.
 - You do **not** need `Source code (zip)` or `Source code (tar.gz)`. Those are developer files, not installers.
 
@@ -57,7 +57,7 @@ History does **not** sync between the app, browsers, or devices. The web version
 | Rich responses | Markdown, highlighted code, math, and Mermaid diagrams |
 | Local history | Keep and switch between conversations on the current device |
 | Selected export | Choose one, several, or all conversations in Settings and export a ZIP |
-| History import | Restore a compatible history ZIP; currently replaces all local conversations and attachments |
+| History import | Merge by default: skip identical content and keep conflicting same-ID conversations as copies; replacement requires a second confirmation |
 
 Image, file, and voice capabilities depend on DeepSeek API support, your account, and network conditions. This project does not promise full feature parity with the official app. Search combined with deep thinking has known limitations.
 
@@ -67,11 +67,11 @@ In Settings, choose history export, select Download, check the conversations to 
 
 - Exports contain selected conversations and locally stored original images, but no API key.
 - Other attachments include file metadata only, **not the original files**. Save important files separately.
-- Selection and counting were tested in a browser for v0.4.7. Full Android acceptance of selective export, saving, and re-import is still pending.
+- v0.4.8 passed 62 automated tests. The user confirmed Android upgrade continuity for history and key, ZIP save/select, non-destructive repeatable merge, and replacement confirmation/cancellation. This does not cover every device or scenario.
 
 To move to another device, export your history, import it on the destination, and enter your key separately.
 
-> **Import currently replaces history; it does not merge it.** Importing a ZIP with two conversations onto a device with ten will replace those ten with the two in the file. Back up important destination history first.
+> **Import defaults to merging, preserving existing local history.** Identical content is skipped; conflicting same-ID conversations are kept as copies. Re-importing the same backup does not keep adding duplicates. Replacing all conversations is still available, but requires a second confirmation and replaces local conversations and attachments. Back up before replacing.
 
 Check for updates in **Settings → About version → Check for updates**, or download an APK from [latest releases](https://github.com/pc-cccc/edu_chat/releases/latest). Patch updates may require a manual check.
 
@@ -97,7 +97,7 @@ If the problem continues, [open an issue](https://github.com/pc-cccc/edu_chat/is
 
 ## Development progress
 
-The **Android app's everyday usability** is the priority; the website is a companion entry point. v0.4.7 provides an APK and selective export. Next priorities are safer backup restoration, device testing, and the interaction between search and thinking. iOS and cloud sync are not currently provided.
+The **Android app's everyday usability** is the priority; the website is a companion entry point. v0.4.8 adds merge-by-default import, replacement confirmation, and locked export selections, with the Android checks described above completed. Next priorities are device compatibility and the interaction between search and thinking. iOS and cloud sync are not currently provided.
 
 If Edu_chat is useful to you, give it a **Star** to help others discover it. Specific feedback about confusing steps and awkward interactions is welcome.
 
@@ -128,7 +128,7 @@ npm run android:sync
 npm run android:open
 ```
 
-The web build is written to `dist/`. Android builds also require a JDK and Android SDK; complete packaging in Android Studio. The v0.4.7 APK is a debug build. Manage signing consistently for future distribution and upgrades; never commit keys or signing files.
+The web build is written to `dist/`. Android builds also require a JDK and Android SDK; complete packaging in Android Studio. The v0.4.8 APK is a debug build. Manage signing consistently for future distribution and upgrades; never commit keys or signing files.
 
 Legacy Node, Cloudflare, and Supabase implementations remain in the repository. [Serverless docs](docs/SERVERLESS.md), [old verification records](docs/VERIFICATION.md), and [Android build history](docs/ANDROID.md) describe earlier setups, not current end-user onboarding.
 

@@ -10,7 +10,7 @@ Edu_chat 基于 [DeepSeek 官方 chat-demo](https://github.com/deepseek-ai/chat-
 
 [下载 Android App](https://github.com/pc-cccc/edu_chat/releases/latest) · [打开网页版](https://edu-chat-9yt.pages.dev) · [反馈问题](https://github.com/pc-cccc/edu_chat/issues)
 
-> 当前版本：**v0.4.7**。新增勾选一条或多条对话，打包导出为一个 ZIP 文件。
+> 当前版本：**v0.4.8**。导入默认合并、替换需二次确认，导出过程中锁定选择，让备份恢复更安心。
 > App 开源免费；聊天需要你自己的 DeepSeek API Key，模型调用费用由你的 DeepSeek 开放平台账户承担。
 
 ## 第一次使用，从这里开始
@@ -19,7 +19,7 @@ Edu_chat 基于 [DeepSeek 官方 chat-demo](https://github.com/deepseek-ai/chat-
 
 适用于 **Android 7.0 及以上**。目前没有 iOS 安装包。
 
-- **当前版本直接下载：[Edu_chat_v0.4.7.apk](https://github.com/pc-cccc/edu_chat/releases/download/v0.4.7/Edu_chat_v0.4.7.apk)**。
+- **当前版本直接下载：[Edu_chat_v0.4.8.apk](https://github.com/pc-cccc/edu_chat/releases/download/v0.4.8/Edu_chat_v0.4.8.apk)**。
 - 也可以进入 [版本下载页](https://github.com/pc-cccc/edu_chat/releases/latest)，展开 **Assets（附件）**，下载以 `.apk` 结尾的文件。
 - 下载完成后，在手机的“下载”中打开 APK，按提示安装。如果系统询问是否允许当前浏览器或文件管理器安装应用，确认文件来自本仓库后，按系统提示授权。
 
@@ -59,7 +59,7 @@ Key 只需填在自己使用的 App 或网页中，不要发到 Issue、评论�
 | 阅读代码与公式 | 支持 Markdown、代码高亮、数学公式和 Mermaid 图表渲染 |
 | 管理本地对话 | 历史保存在当前设备，可在不同对话间切换 |
 | 选择性导出 | 在设置中勾选一条、多条或全部对话，导出为 ZIP 备份 |
-| 导入历史 | 支持兼容格式的历史 ZIP；当前导入会替换全部本地对话和附件 |
+| 导入历史 | 默认合并：相同内容跳过，同 ID 不同内容保留副本；替换全部需二次确认 |
 
 图片、文件、语音等能力受 DeepSeek 接口支持、账户与网络条件影响，不保证与官方 App 的全部功能一致。搜索与深度思考同时开启时，搜索触发仍有已知限制。
 
@@ -69,12 +69,12 @@ Key 只需填在自己使用的 App 或网页中，不要发到 Issue、评论�
 
 - 备份包含所选对话及其本地图片原件，不包含 API Key。
 - 其他附件只保留文件信息，**不包含原文件**；重要附件请另外保存。
-- v0.4.7 的选择与计数交互已做浏览器验证，手机上的选择性导出、保存及重新导入仍待完整验收。
+- v0.4.8 已通过 62 项自动测试。用户已确认真机覆盖安装保留历史与 Key、ZIP 保存与选择、合并不删除其他对话且重复导入不重复、替换二次确认及取消行为通过；不代表所有机型与场景均已验证。
 
 **换设备：** 先导出并保存 ZIP，在新设备上导入，再单独填写 Key。手机 App 与网页版之间也需要手动迁移。
 
-> **导入前必读：目前导入是“替换”，不是“合并”。**
-> 例如只导出了 2 条对话，将这个文件导入有 10 条对话的设备后，原来的 10 条会被替换成文件中的 2 条。请先备份目标设备上的重要记录。
+> **默认选择“合并到现有对话”，保留本机已有记录。**
+> 内容相同的会话会跳过；同 ID 但内容不同的会话会保留为副本，重复导入同一份备份不会不断新增相同记录。若选择“替换全部对话”，还需再次确认：文件中的记录会替换本机全部对话与附件。替换前请先备份。
 
 **更新：** 在 App 的“设置 → 关于版本 → 检查更新”中检查，或前往 [版本下载页](https://github.com/pc-cccc/edu_chat/releases/latest) 下载新版 APK。小版本更新不一定主动弹窗，可手动检查。
 
@@ -106,7 +106,7 @@ Android 版优先使用系统加密存储保存 Key；当前实现仍有加密�
 
 ## 当前进度与下一步
 
-目前以 **Android App 的日常体验**为开发重点，网页版作为补充入口。v0.4.7 已提供 APK，加入了选择性导出；后续优先完善备份恢复、真机兼容性及搜索与思考的组合体验。iOS 和云同步暂未提供。
+目前以 **Android App 的日常体验**为开发重点，网页版作为补充入口。v0.4.8 已加入默认合并导入、替换二次确认与导出选择锁定，并完成上述真机验收；后续继续完善真机兼容性及搜索与思考的组合体验。iOS 和云同步暂未提供。
 
 如果 Edu_chat 对你有用，欢迎点一个 **Star**，让更多人发现这个项目。也欢迎带着具体使用场景来提建议：哪个操作不顺手、哪一步看不懂，都能帮助它变得更好用。
 
@@ -140,7 +140,7 @@ npm run android:sync
 npm run android:open
 ```
 
-Android 工程还需要 JDK 与 Android SDK，可在 Android Studio 中完成打包。现有 v0.4.7 APK 由 debug 构建产生；后续分发需妥善管理签名，保持升级兼容，不要提交签名文件或真实密钥。
+Android 工程还需要 JDK 与 Android SDK，可在 Android Studio 中完成打包。现有 v0.4.8 APK 由 debug 构建产生；后续分发需妥善管理签名，保持升级兼容，不要提交签名文件或真实密钥。
 
 仓库仍保留旧 Node 网关及 Cloudflare / Supabase 方案。[Serverless 指南](docs/SERVERLESS.md)、[旧验证记录](docs/VERIFICATION.md) 和 [Android 历史构建说明](docs/ANDROID.md) 记录的是早期方案与环境，不能当作当前 App 的首次使用教程。
 
