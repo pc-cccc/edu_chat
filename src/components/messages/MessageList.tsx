@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useIsMobile } from '../../app/viewport.js'
+import { useTranslate } from '../../i18n/index.js'
+import { IconChevronDownOutline14 } from '../base/icons.js'
 import {
   buildMessageVersions,
   getVisibleMessages,
@@ -43,9 +45,12 @@ export const MessageList = ({
   footer: React.ReactNode
 }) => {
   const isMobile = useIsMobile()
+  const t = useTranslate()
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const stickyRef = useRef(true)
+  /** 仅用于渲染「回到最新」按钮；滚动监听里仍以 ref 为准，避免频繁重建监听 */
+  const [stickyView, setStickyView] = useState(true)
   const scrollTopRef = useRef(0)
   const restoreScrollRef = useRef<{ messageId: string; top: number } | null>(null)
   const messages = getVisibleMessages(session)
@@ -96,6 +101,7 @@ export const MessageList = ({
       return
     }
     stickyRef.current = true
+    setStickyView(true)
     scrollToBottom()
   }, [session.id, lastMessageId, scrollToBottom])
 
@@ -108,11 +114,18 @@ export const MessageList = ({
       }
       restoreScrollRef.current = { messageId, top: anchorTop }
       stickyRef.current = false
+      setStickyView(false)
       closeSearchPanel()
       selectMessageVersion(session.id, messageId)
     },
     [session.id, streaming]
   )
+
+  const backToLatest = () => {
+    stickyRef.current = true
+    setStickyView(true)
+    scrollToBottom()
+  }
 
   // 跨移动端断点时切换滚动层，并保持输入框及当前阅读位置。
   useLayoutEffect(() => {
@@ -128,10 +141,10 @@ export const MessageList = ({
     const onScroll = () => {
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < STICKY_THRESHOLD
       // 仅在用户向上滚动时停止跟随底部，布局或内容增高时保持跟随状态。
-      if (nearBottom) {
-        stickyRef.current = true
-      } else if (el.scrollTop < scrollTopRef.current) {
-        stickyRef.current = false
+      const next = nearBottom ? true : el.scrollTop < scrollTopRef.current ? false : stickyRef.current
+      if (next !== stickyRef.current) {
+        stickyRef.current = next
+        setStickyView(next)
       }
       scrollTopRef.current = el.scrollTop
     }
@@ -172,6 +185,14 @@ export const MessageList = ({
                 />
               )
             )}
+            {!stickyView ? (
+              <div className={styles.backWrap}>
+                <button type="button" className={styles.backToLatest} onClick={backToLatest}>
+                  <IconChevronDownOutline14 />
+                  <span>{t('backToLatest')}</span>
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
         {footer}

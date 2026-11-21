@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { useSupabaseAuth } from '../supabase/client.js'
 import { createId } from '../../utils/id.js'
 import { ApiError, streamMessage } from '../api/client.js'
-import type { ChatModel, CreateMessageRequest } from '../api/types.js'
+import type { ChatModel } from '../api/types.js'
 import { extractFileIds, getFileErrorCode, isRetryableApiError } from '../api/errors.js'
 import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
 import { useSettings } from '../settings.js'
@@ -26,6 +26,7 @@ import {
 import { createLatestReminder } from './latestReminder.js'
 import {
   applyEvent,
+  buildChatRequest,
   canContinueReply,
   getContextRounds,
   settleReply,
@@ -48,23 +49,10 @@ const SYSTEM_PROMPT =
   '你是 Edu_chat，一个使用 DeepSeek 模型的通用 AI 助手，非 DeepSeek 官方产品。根据用户的问题提供清晰、准确的帮助，遵循用户的语言和表达偏好。不确定时如实说明。按需使用 Markdown 和 LaTeX，不声称拥有未实际调用的搜索、文件或其他能力。'
 /** 保留最近打开的详情；当前会话、生成中及尚未成功保存的会话不淘汰。 */
 const SESSION_CACHE_LIMIT = 5
-/** 安全审核固定开启，所有请求都走扩展模式 */
-const SAFETY_CHECK = { level: 'high' } as const
 /** 服务端判定 file_id 失效后，重新补传并重发的最多次数（不含首次请求） */
 const FILE_RETRY_LIMIT = 2
 /** 退避基数，第 n 次重试等待 2^n 倍；连续失败达到上限就放弃，把原始报错展示出来 */
 const FILE_RETRY_BASE_DELAY = 1000
-
-/** 阅读链接始终开启，智能搜索开关控制是否另行声明搜索工具（含边想边搜）。 */
-const serverTools = (search: boolean): CreateMessageRequest['tools'] => {
-  const tools: CreateMessageRequest['tools'] = [
-    { type: 'deepseek_read_url', name: 'deepseek_read_url' },
-  ]
-  if (search) {
-    tools.push({ type: 'deepseek_web_search', name: 'deepseek_web_search' })
-  }
-  return tools
-}
 
 /** 允许自动补标题的请求；手动重命名后取消本轮标题写入，包含主动清空标题的情况。 */
 const titleRequests = new Set<AbortController>()
@@ -1143,17 +1131,21 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           initial.thinking ?? false,
           latestReminder
         )
-        const events = streamMessage(
-          useSettings.getState().apiKey ?? '',
+        const body = buildChatRequest(
           {
             model: initial.model ?? MODEL,
+            thinking: initial.thinking ?? false,
+            search: initial.search ?? false,
+          },
+          {
             system: SYSTEM_PROMPT,
             messages,
-            thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
-            safety_check: SAFETY_CHECK,
-            tools: serverTools(initial.search ?? false),
-            ...(titleRequests.has(controller) ? { title: { enabled: true } } : {}),
-          },
+            withTitle: titleRequests.has(controller),
+          }
+        )
+        const events = streamMessage(
+          useSettings.getState().apiKey ?? '',
+          body,
           controller.signal
         )
         const blockIndexes = new Map<number, number>()

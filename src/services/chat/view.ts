@@ -35,6 +35,26 @@ export const isDeepSearchKind = (kind: ServerToolKind) =>
 export const isImageSearchKind = (kind: ServerToolKind) =>
   kind === 'image_search' || kind === 'deep_image_search'
 
+/** 打开或查找步骤也属于搜索能力（深度思考搜索），一并计入「是否搜过」。 */
+const isSearchStep = (step: Step) =>
+  step.type === 'search' || step.type === 'open' || step.type === 'find'
+
+/**
+ * 开启搜索但本轮没有执行任何搜索相关调用。
+ * 优先用官方 usage.server_tool_use 计数（web_search_requests 含被拒、无效与失败的尝试，
+ * 没有尝试过搜索时该字段不出现）；旧数据或导入的回复没有该字段时回退到步骤判断。
+ */
+export const isSearchUnused = (reply: AssistantMessage, steps: Step[]): boolean => {
+  if (!reply.search) {
+    return false
+  }
+  const usage = reply.usage?.server_tool_use
+  if (usage) {
+    return usage.web_search_requests === 0
+  }
+  return !steps.some(isSearchStep)
+}
+
 export type SearchStep = {
   type: 'search'
   /** 该步骤首次调用的 ID，空查询的图搜也有稳定标识 */

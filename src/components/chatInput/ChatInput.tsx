@@ -132,6 +132,30 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   // 排队、上传中或上传失败的附件都留在输入框，全部上传成功后才能发送
   const canSend = !importingHistory && !streaming && voice.status === 'idle' && draftReady
 
+  // 开关说明：生成中提示只影响下一条；其余按组合说明能力，双开不承诺必定联网。
+  const modeHint = streaming
+    ? t('modeChangeNextMessage')
+    : thinking && search
+      ? t('chatInputModeHintBoth')
+      : thinking
+        ? t('chatInputModeHintThink')
+        : search
+          ? t('chatInputModeHintSearch')
+          : ''
+
+  const toggleThinking = () => {
+    setThinking(!thinking)
+    if (streaming) {
+      showToast({ key: 'modeChangeNextMessage' })
+    }
+  }
+  const toggleSearch = () => {
+    setSearch(!search)
+    if (streaming) {
+      showToast({ key: 'modeChangeNextMessage' })
+    }
+  }
+
   const send = () => {
     if (
       useChatStore.getState().importingHistory ||
@@ -208,7 +232,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
               className={clsx(styles.toggle, thinking && styles.selected)}
               aria-label={t('thinkingSwitch')}
               aria-pressed={thinking}
-              onClick={() => setThinking(!thinking)}
+              onClick={toggleThinking}
             >
               <IconThinkOutline14 />
               <span className={styles.toggleLabel}>{t('thinkingSwitch')}</span>
@@ -220,7 +244,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
               className={clsx(styles.toggle, search && styles.selected)}
               aria-label={t('search')}
               aria-pressed={search}
-              onClick={() => setSearch(!search)}
+              onClick={toggleSearch}
             >
               <IconGlobeLanguageOutline14 />
               <span className={styles.toggleLabel}>{t('search')}</span>
@@ -285,6 +309,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           )}
         </div>
       </div>
+      {modeHint ? <div className={styles.modeHint}>{modeHint}</div> : null}
       {dragging ? <DragMask /> : null}
     </div>
   )

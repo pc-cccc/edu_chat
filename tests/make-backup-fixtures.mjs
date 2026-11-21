@@ -168,13 +168,35 @@ const plain = session({
   ],
 })
 
+/** 开启了搜索但模型没有执行：用于验证「本次未使用联网搜索」与重试入口。 */
+const searchUnused = session({
+  id: 'fixture-search-unused',
+  title: '搜索未触发会话（验收）',
+  createdAt: DAY + 300,
+  messages: [
+    user('u1', '简单打个招呼', DAY + 300, { children: ['a1'] }),
+    reply('a1', 'u1', DAY + 301, [text('你好，这条回答没有联网搜索。')], {
+      thinking: true,
+      search: true,
+      usage: {
+        input_tokens: 10,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+        output_tokens: 5,
+        server_tool_use: { web_search_requests: 0, tool_search: 0 },
+      },
+    }),
+  ],
+})
+
 // ---------- 导出 ----------
 const outDir = process.argv[2] ?? path.join(process.env.TEMP ?? '.', 'edu-chat-backups')
 await mkdir(outDir, { recursive: true })
 
 db.setUserScope('fixture-export')
 await db.saveFiles([{ id: IMG_ID, blob: new Blob([png]) }])
-for (const item of [rich, searched, plain]) {
+const allSessions = [rich, searched, plain, searchUnused]
+for (const item of allSessions) {
   await db.saveSession(item)
 }
 
@@ -192,10 +214,10 @@ const write = async (name, sessions) => {
 }
 
 await write('rich.zip', [rich])
-await write('all-three.zip', [rich, searched, plain])
+await write('all-four.zip', allSessions)
 
 const allBytes = Buffer.from(await (await exportArchive((async function* () {
-  for (const item of [rich, searched, plain]) {
+  for (const item of allSessions) {
     yield item
   }
 })())).arrayBuffer())

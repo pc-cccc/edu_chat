@@ -1,5 +1,6 @@
 import type {
   AssistantBlockParam,
+  CreateMessageRequest,
   FileBlockParam,
   MessageParam,
   MessageStreamEvent,
@@ -51,6 +52,31 @@ const toReplyBlock = (block: OutputBlockStart, now: number): ReplyBlock | null =
   }
 }
 
+/** 联网工具声明，与官方 web_tools 格式一致：阅读链接始终开启，联网搜索按开关。 */
+export const webTools = (search: boolean): CreateMessageRequest['tools'] => [
+  { type: 'deepseek_read_url', name: 'deepseek_read_url' },
+  ...(search
+    ? [{ type: 'deepseek_web_search' as const, name: 'deepseek_web_search' as const }]
+    : []),
+]
+
+/**
+ * 组装 Messages 请求。模式（模型 / 思考 / 搜索）在发送时固定，
+ * 导出为纯函数供四种组合的参数测试直接校验。
+ */
+export const buildChatRequest = (
+  mode: { model: CreateMessageRequest['model']; thinking: boolean; search: boolean },
+  options: { system: string; messages: MessageParam[]; withTitle?: boolean }
+): CreateMessageRequest => ({
+  model: mode.model,
+  system: options.system,
+  messages: options.messages,
+  thinking: { type: mode.thinking ? 'enabled' : 'disabled' },
+  safety_check: { level: 'high' },
+  tools: webTools(mode.search),
+  ...(options.withTitle ? { title: { enabled: true } } : {}),
+})
+
 const updateBlock = (
   reply: AssistantMessage,
   index: number,
@@ -75,6 +101,10 @@ export const applyEvent = (
   now: number,
   blockIndexes: Map<number, number>
 ): AssistantMessage => {
+  // 已结束（完成 / 停止 / 出错）的回复不再吸收迟到事件，防止停止后残留事件改写入已收尾的回答。
+  if (reply.status === 'done' || reply.status === 'stopped' || reply.status === 'error') {
+    return reply
+  }
   const next: AssistantMessage =
     reply.status === 'streaming' ? reply : { ...reply, status: 'streaming' }
   switch (event.type) {

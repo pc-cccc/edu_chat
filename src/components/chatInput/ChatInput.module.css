@@ -330,3 +330,11 @@
     cursor: not-allowed;
   }
 }
+
+.modeHint {
+  flex-shrink: 0;
+  padding: 0 16px 10px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}

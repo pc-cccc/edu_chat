@@ -18,6 +18,12 @@
   height: 34px;
 }
 
+.waitingLabel {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
 .waitingDot {
   width: 6px;
   height: 6px;
@@ -136,4 +142,32 @@
     background-color: var(--dsw-alias-interactive-bg-hover);
     --search-row-site-logo-color: var(--dsw-alias-interactive-bg-hover);
   }
+}
+
+.searchUnused {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+
+  > svg {
+    flex-shrink: 0;
+  }
+}
+
+.searchRetry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.searchRetryHint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
 }
