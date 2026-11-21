@@ -65,6 +65,15 @@ export const AssistantMessage = memo(function AssistantMessage({
   const searchUnused = !streaming && !refused && isSearchUnused(message, view.steps)
   const retrySearch =
     searchUnused && message.thinking === true && (message.status === 'done' || message.status === 'stopped')
+  // 含搜索/阅读步骤的回复不能继续（搜索步骤无法作为续写前缀），给出说明。
+  const hasToolBlocks = message.blocks.some(
+    (block) =>
+      block.type === 'server_tool_use' ||
+      block.type === 'web_search_tool_result' ||
+      block.type === 'web_fetch_tool_result'
+  )
+  const continueBlockedBySearch =
+    isLast && !streaming && !canContinueReply(message) && hasToolBlocks && message.status === 'stopped'
   const summaryEntry = `${message.id}-summary`
   return (
     <div className={styles.message}>
@@ -74,6 +83,11 @@ export const AssistantMessage = memo(function AssistantMessage({
           view={view}
           streaming={streaming}
           hasResponse={!!responseText}
+          onRetry={() => {
+            // 搜索失败或无结果：由用户点击后按新分支重新请求，原回答保留。
+            stopReadAloud()
+            regenerateReply(sessionId, message.id)
+          }}
         />
       )}
       {answer ? (
@@ -206,6 +220,9 @@ export const AssistantMessage = memo(function AssistantMessage({
             >
               {t('continueGenerating')}
             </Button>
+          ) : null}
+          {continueBlockedBySearch ? (
+            <div className={styles.continueBlocked}>{t('continueUnavailableWithSearch')}</div>
           ) : null}
         </div>
       )}

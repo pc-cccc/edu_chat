@@ -171,3 +171,9 @@
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
+
+.continueBlocked {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}

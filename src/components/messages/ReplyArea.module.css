@@ -149,7 +149,6 @@
     width: fit-content;
     cursor: pointer;
   }
-
   &.clickable::before,
   &.active::before {
     content: '';
@@ -313,4 +312,23 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.retryChip {
+  flex-shrink: 0;
+  height: 24px;
+  margin-left: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background-color: transparent;
+  color: var(--dsw-alias-brand-text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 22px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
 }

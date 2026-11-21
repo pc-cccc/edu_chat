@@ -31,6 +31,13 @@ export const describeReply = (reply: AssistantMessage): Notice | null => {
     if (kind === 'network') {
       return { text: translate('commonNetworkErrorToast') }
     }
+    // 断流：流在结束前中断且没有结束原因，与服务端错误帧、协议异常区分开。
+    if (kind === 'interrupted') {
+      return { text: translate('replyInterrupted') }
+    }
+    if (kind === 'protocol') {
+      return { text: translate('replyProtocolError') }
+    }
     // 托管模式由网关返回脱敏提示，避免将缺少服务端配置误报为繁忙，
     // 或引导用户在浏览器里修改服务端密钥。
     if (__APP_MODE__ !== 'direct' && message && status !== 402) {

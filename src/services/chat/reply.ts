@@ -250,7 +250,7 @@ const toUserParam = ({ content, files }: UserMessage): MessageParam => {
  * - 工具调用和结果只保留 kind 为 read_link 的块，其他历史工具块不回传；
  * - 阅读链接结果原样回传，保留 signature：服务端解密后将页面拼回该轮提问末尾；
  */
-const toAssistantParam = (
+export const toAssistantParam = (
   { blocks }: AssistantMessage,
   prefix = false,
   thinking = false

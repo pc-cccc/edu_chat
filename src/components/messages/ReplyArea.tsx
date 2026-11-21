@@ -58,11 +58,14 @@ export const ReplyArea = memo(function ReplyArea({
   view,
   streaming,
   hasResponse,
+  onRetry,
 }: {
   message: AssistantMessage
   view: ReplyView
   streaming: boolean
   hasResponse: boolean
+  /** 搜索失败或无结果时提供重试入口：按新分支重新请求，原回答保留。 */
+  onRetry?: () => void
 }) {
   useTranslate()
   const [open, setOpen] = useState(true)
@@ -96,6 +99,7 @@ export const ReplyArea = memo(function ReplyArea({
               sources={view.sources}
               streaming={streaming}
               isLast={index === view.steps.length - 1}
+              onRetry={onRetry}
             />
           ))}
         </div>
@@ -115,12 +119,14 @@ const StepItem = ({
   sources,
   streaming,
   isLast,
+  onRetry,
 }: {
   step: Step
   message: AssistantMessage
   sources: Source[]
   streaming: boolean
   isLast: boolean
+  onRetry?: () => void
 }) => {
   switch (step.type) {
     case 'thinking': {
@@ -151,7 +157,15 @@ const StepItem = ({
         </ContentItem>
       )
     case 'search':
-      return <SearchRow step={step} message={message} streaming={streaming} isLast={isLast} />
+      return (
+        <SearchRow
+          step={step}
+          message={message}
+          streaming={streaming}
+          isLast={isLast}
+          onRetry={onRetry}
+        />
+      )
     case 'open':
       return <OpenRow step={step} sources={sources} isLast={isLast} />
     case 'find':
@@ -187,11 +201,13 @@ const SearchRow = ({
   message,
   streaming,
   isLast,
+  onRetry,
 }: {
   step: SearchStep
   message: AssistantMessage
   streaming: boolean
   isLast: boolean
+  onRetry?: () => void
 }) => {
   const t = useTranslate()
   const entry = useSearchPanel((state) => state.entry)
@@ -202,6 +218,8 @@ const SearchRow = ({
   const panelEntry = `${message.id}-search-${step.key}`
   const failed = step.status === 'failed'
   const interrupted = failed && !streaming && message.status === 'stopped'
+  // 失败或没有结果时提供重试入口；用户点击后才按新分支发起请求，原回答保留。
+  const retryable = !streaming && isLast && (failed || (step.status === 'done' && count === 0))
 
   let body: ReactNode
   if (wip) {
@@ -256,6 +274,18 @@ const SearchRow = ({
         {failed ? <IconSearchWarningOutline16 /> : <IconSearchOutline16 />}
       </span>
       {body}
+      {retryable && onRetry ? (
+        <button
+          type="button"
+          className={styles.retryChip}
+          onClick={(event) => {
+            event.stopPropagation()
+            onRetry()
+          }}
+        >
+          {t('searchRetry')}
+        </button>
+      ) : null}
     </div>
   )
 }

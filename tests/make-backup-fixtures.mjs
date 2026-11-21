@@ -189,13 +189,83 @@ const searchUnused = session({
   ],
 })
 
+/** 搜索执行但失败：验证「联网搜索暂不可用」与重试入口。 */
+const searchFailed = session({
+  id: 'fixture-search-failed',
+  title: '搜索失败会话（验收）',
+  createdAt: DAY + 400,
+  messages: [
+    user('u1', '搜索一个不存在的主题', DAY + 400, { children: ['a1'] }),
+    reply('a1', 'u1', DAY + 401, [
+      {
+        type: 'server_tool_use',
+        id: 'srvtoolu_s_f_1',
+        name: 'deepseek_web_search',
+        input: { action: 'search', query: 'x', queries: ['不存在的主题'] },
+        caller: { type: 'direct' },
+        kind: 'search',
+      },
+      {
+        type: 'web_search_tool_result',
+        tool_use_id: 'srvtoolu_s_f_1',
+        kind: 'search',
+        content: [{ type: 'web_search_tool_result_error', error_code: 'unavailable' }],
+      },
+      text('搜索没有成功，这是没有来源的回答。'),
+    ], { search: true }),
+  ],
+})
+
+/** 搜索执行但没有结果：验证「未搜索到相关内容」与重试入口。 */
+const searchEmpty = session({
+  id: 'fixture-search-empty',
+  title: '搜索无结果会话（验收）',
+  createdAt: DAY + 500,
+  messages: [
+    user('u1', '搜索一个冷门词', DAY + 500, { children: ['a1'] }),
+    reply('a1', 'u1', DAY + 501, [
+      {
+        type: 'server_tool_use',
+        id: 'srvtoolu_s_e_1',
+        name: 'deepseek_web_search',
+        input: { action: 'search', query: '冷门词', queries: ['冷门词'] },
+        caller: { type: 'direct' },
+        kind: 'search',
+      },
+      { type: 'web_search_tool_result', tool_use_id: 'srvtoolu_s_e_1', kind: 'search', content: [] },
+      text('没有找到相关内容，这是回答。'),
+    ], { search: true }),
+  ],
+})
+
+/** 搜索中被停止：验证「已停止」状态与「无法继续回答」说明。 */
+const searchStopped = session({
+  id: 'fixture-search-stopped',
+  title: '搜索中停止会话（验收）',
+  createdAt: DAY + 600,
+  messages: [
+    user('u1', '搜索并回答', DAY + 600, { children: ['a1'] }),
+    reply('a1', 'u1', DAY + 601, [
+      {
+        type: 'server_tool_use',
+        id: 'srvtoolu_s_s_1',
+        name: 'deepseek_web_search',
+        input: { action: 'search', query: 'q', queries: ['q'] },
+        caller: { type: 'direct' },
+        kind: 'search',
+      },
+      text('回答到一半被停止'),
+    ], { status: 'stopped', search: true }),
+  ],
+})
+
 // ---------- 导出 ----------
 const outDir = process.argv[2] ?? path.join(process.env.TEMP ?? '.', 'edu-chat-backups')
 await mkdir(outDir, { recursive: true })
 
 db.setUserScope('fixture-export')
 await db.saveFiles([{ id: IMG_ID, blob: new Blob([png]) }])
-const allSessions = [rich, searched, plain, searchUnused]
+const allSessions = [rich, searched, plain, searchUnused, searchFailed, searchEmpty, searchStopped]
 for (const item of allSessions) {
   await db.saveSession(item)
 }
@@ -214,7 +284,7 @@ const write = async (name, sessions) => {
 }
 
 await write('rich.zip', [rich])
-await write('all-four.zip', allSessions)
+await write('all-fixtures.zip', allSessions)
 
 const allBytes = Buffer.from(await (await exportArchive((async function* () {
   for (const item of allSessions) {
